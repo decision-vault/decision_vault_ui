@@ -1,5 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { AppLayout } from '../layouts/AppLayout'
+import { AppLayout } from '../layouts/dashboard/AppLayout'
 import { AssistantPage } from '../modules/dashboard/AssistantPage'
 import { DashboardPage } from '../modules/dashboard/DashboardPage'
 export const router = createBrowserRouter([
