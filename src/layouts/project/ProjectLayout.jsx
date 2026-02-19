@@ -37,6 +37,7 @@ const PROJECT_NAMES = {
 
 function getContextTitle(pathname, projectId) {
   if (pathname.endsWith('/new')) return 'New project'
+  if (pathname.includes('/dashboard')) return 'Dashboard'
   if (projectId && PROJECT_NAMES[projectId]) return PROJECT_NAMES[projectId]
   return 'Projects'
 }
@@ -136,9 +137,32 @@ export function ProjectLayout() {
               background: 'var(--color-panel-translucent)',
             }}
           >
-            <IconButton variant="soft" size="3" radius="full" aria-label="Projects" title="Projects">
-              <ViewGridIcon width="20" height="20" />
+            <IconButton
+              variant={location.pathname.includes('/dashboard') ? 'ghost' : 'soft'}
+              size="3"
+              radius="full"
+              aria-label="Projects"
+              title="Projects"
+              asChild
+            >
+              <Link to={`/organizations/${orgId}/projects${projectId ? `/${projectId}` : ''}`}>
+                <ViewGridIcon width="20" height="20" />
+              </Link>
             </IconButton>
+            {projectId && (
+              <IconButton
+                variant={location.pathname.includes('/dashboard') ? 'soft' : 'ghost'}
+                size="3"
+                radius="full"
+                aria-label="Dashboard"
+                title="Dashboard"
+                asChild
+              >
+                <Link to={`/organizations/${orgId}/projects/${projectId}/dashboard`}>
+                  <BarChartIcon width="20" height="20" />
+                </Link>
+              </IconButton>
+            )}
             <IconButton variant="ghost" size="3" radius="full" aria-label="Team" title="Team">
               <PersonIcon width="20" height="20" />
             </IconButton>

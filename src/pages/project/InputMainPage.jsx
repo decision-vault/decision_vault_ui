@@ -14,7 +14,7 @@ import {
   Badge,
 } from '@radix-ui/themes'
 import { ArrowUpIcon, UploadIcon, CheckCircledIcon, ChevronRightIcon } from '@radix-ui/react-icons'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useLocation } from 'react-router-dom'
 
 const INITIAL_TEXT = `We are building a SaaS analytics dashboard for startups. Initially we planned to use Next.js for the frontend because of SSR capabilities, but after evaluating performance and developer experience, we are considering switching to Vite with React.
 
@@ -98,6 +98,8 @@ function ExampleCard({ title, author, imageCount }) {
 
 export function InputMainPage() {
   const { orgId, projectId } = useParams()
+  const location = useLocation()
+  const isInsideDashboard = location.pathname.includes('/dashboard')
   const [typedText, setTypedText] = useState('')
   const [phase, setPhase] = useState('typing') // typing | submitted | loading | findings | questions | done
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -215,6 +217,15 @@ export function InputMainPage() {
   return (
     <Box p="6">
       <Flex direction="column" align="center" gap="6" style={{ width: '100%' }}>
+        {orgId && projectId && !isInsideDashboard && (
+          <Flex justify="end" style={{ width: '100%' }}>
+            <Button size="2" variant="soft" color="purple" asChild>
+              <Link to={`/organizations/${orgId}/projects/${projectId}/dashboard`}>
+                Assistant
+              </Link>
+            </Button>
+          </Flex>
+        )}
         <Flex direction="column" align="center" gap="4" style={{ width: '100%' }}>
           <Heading size="8" align="center">
             What do you want to make?
@@ -467,9 +478,16 @@ export function InputMainPage() {
                     )
                   })}
                   {mvpCompletedStepIndex >= 10 && (
-                    <Text size="2" color="green" weight="medium" style={{ marginTop: 8 }}>
-                      All steps complete.
-                    </Text>
+                    <Flex align="center" gap="3" wrap="wrap" style={{ marginTop: 12 }}>
+                      <Text size="2" color="green" weight="medium">
+                        All steps complete.
+                      </Text>
+                      <Button size="2" color="green" asChild>
+                        <Link to={`/organizations/${orgId}/projects/${projectId}/dashboard`}>
+                          Go to dashboard
+                        </Link>
+                      </Button>
+                    </Flex>
                   )}
                 </Flex>
               )}
