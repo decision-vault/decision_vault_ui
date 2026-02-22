@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Avatar, Box, Flex, Grid, Heading, Link as RadixLink, Text } from '@radix-ui/themes'
+import logo from '../../assets/logo.svg'
 
 export function AuthShell({
   title,
@@ -23,16 +24,18 @@ export function AuthShell({
           <Flex direction="column" gap="6" style={{ width: '100%' }}>
             <Flex align="center" gap="2">
               <Box
+                asChild
                 style={{
-                  width: 24,
-                  height: 24,
-                  background: 'var(--accent-9)',
-                  borderRadius: 6,
-                  clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  overflow: 'hidden',
                 }}
-              />
+              >
+                <img src={logo} alt="DecisionVault logo" />
+              </Box>
               <Text size="4" weight="bold">
-                supabase
+                DecisionVault
               </Text>
             </Flex>
 
@@ -80,10 +83,10 @@ function DefaultTestimonial() {
       <Text size="8" style={{ opacity: 0.3 }}>
         &ldquo;
       </Text>
-      <Heading size="6">Where has @supabase been all my life? 😍</Heading>
+      <Heading size="6">Make every product decision traceable, searchable, and explainable.</Heading>
       <Flex align="center" gap="2">
-        <Avatar size="2" radius="full" fallback="E" />
-        <Text size="2">@Elsolo244</Text>
+        <Avatar size="2" radius="full" fallback="DV" />
+        <Text size="2">DecisionVault Team</Text>
       </Flex>
     </Flex>
   )

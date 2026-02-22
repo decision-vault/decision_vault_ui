@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   Box,
   Flex,
@@ -7,141 +7,93 @@ import {
   Button,
   TextField,
   Card,
-  Checkbox,
-  Link as RadixLink,
-  Select,
-  IconButton,
+  TextArea,
 } from '@radix-ui/themes'
 import { useState } from 'react'
-import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons'
-
-const ORG_NAMES = {
-  '1': 'bloom-majesty',
-  '2': 'bm',
-  '3': 'kvstudio',
-  '4': 'kavi',
-}
+import { createProject } from '../../services/projectApi'
 
 export function ProjectCreatePage() {
   const { orgId } = useParams()
-  const [showPassword, setShowPassword] = useState(false)
+  const navigate = useNavigate()
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  const onSubmit = async (event) => {
+    event.preventDefault()
+    if (!name.trim()) return
+    setIsSubmitting(true)
+    setError('')
+    try {
+      await createProject(orgId, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      })
+      navigate(`/organizations/${orgId}/projects`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create project')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <Box p="6" style={{ maxWidth: 560, margin: '0 auto' }}>
       <Card variant="surface" size="3">
-        <Flex direction="column" gap="5" p="6">
+        <Flex asChild direction="column" gap="5" p="6">
+          <form onSubmit={onSubmit}>
           <Flex direction="column" gap="1">
             <Heading size="6">Create a new project</Heading>
             <Text size="2" color="gray">
-              Your project will have its own dedicated instance and full Postgres database. An
-              API will be set up so you can easily interact with your new database.
+              Fill only required API fields for project creation.
             </Text>
           </Flex>
 
           <Flex direction="column" gap="1">
             <Text as="label" size="2" weight="medium">
-              Organization
-            </Text>
-            <Select.Root defaultValue={orgId} size="3">
-              <Select.Trigger variant="surface" style={{ width: '100%' }} />
-              <Select.Content>
-                <Select.Item value="1">{ORG_NAMES['1']} FREE</Select.Item>
-                <Select.Item value="2">{ORG_NAMES['2']} FREE</Select.Item>
-                <Select.Item value="3">{ORG_NAMES['3']} FREE</Select.Item>
-                <Select.Item value="4">{ORG_NAMES['4']} FREE</Select.Item>
-              </Select.Content>
-            </Select.Root>
-          </Flex>
-
-          <Flex direction="column" gap="1">
-            <Text as="label" size="2" weight="medium">
-              Project name
-            </Text>
-            <TextField.Root placeholder="Project name" size="3" variant="surface" />
-          </Flex>
-
-          <Flex direction="column" gap="1">
-            <Text as="label" size="2" weight="medium">
-              Database password
+              Project name *
             </Text>
             <TextField.Root
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Type in a strong password"
+              placeholder="Project name"
               size="3"
               variant="surface"
-            >
-              <TextField.Slot side="right">
-                <IconButton
-                  type="button"
-                  variant="ghost"
-                  size="1"
-                  onClick={() => setShowPassword((p) => !p)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeClosedIcon width="16" height="16" /> : <EyeOpenIcon width="16" height="16" />}
-                </IconButton>
-              </TextField.Slot>
-            </TextField.Root>
-            <Text size="1" color="gray">
-              This is the password to your Postgres database, so it must be strong and hard to
-              guess. <RadixLink asChild><Link to="#">Generate a password.</Link></RadixLink>
-            </Text>
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              maxLength={160}
+              required
+            />
           </Flex>
 
           <Flex direction="column" gap="1">
             <Text as="label" size="2" weight="medium">
-              Region
+              Description
             </Text>
-            <Select.Root defaultValue="ap-southeast-1" size="3">
-              <Select.Trigger variant="surface" style={{ width: '100%' }} />
-              <Select.Content>
-                <Select.Item value="ap-southeast-1">Asia-Pacific (Singapore)</Select.Item>
-                <Select.Item value="us-east-1">US East</Select.Item>
-                <Select.Item value="eu-west-1">Europe (Ireland)</Select.Item>
-              </Select.Content>
-            </Select.Root>
-            <Text size="1" color="gray">
-              Select the region closest to your users for the best performance.
-            </Text>
+            <TextArea
+              placeholder="Optional description"
+              size="3"
+              variant="surface"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={2000}
+            />
           </Flex>
 
-          <Flex direction="column" gap="3">
-            <Flex gap="2" align="start">
-              <Checkbox defaultChecked size="2" />
-              <Flex direction="column" gap="0">
-                <Text size="2" weight="medium">
-                  Enable Data API
-                </Text>
-                <Text size="1" color="gray">
-                  Autogenerate a RESTful API for your public schema. Recommended if using a client
-                  library like <RadixLink asChild><Link to="#">supabase-js</Link></RadixLink>.
-                </Text>
-              </Flex>
-            </Flex>
-            <Flex gap="2" align="start">
-              <Checkbox size="2" />
-              <Flex direction="column" gap="0">
-                <Text size="2" weight="medium">
-                  Enable automatic RLS
-                </Text>
-                <Text size="1" color="gray">
-                  Create an event trigger that automatically enables Row Level Security on all new
-                  tables in the public schema.
-                </Text>
-              </Flex>
-            </Flex>
-          </Flex>
-
-          <RadixLink asChild size="1" color="gray">
-            <Link to="#">ADVANCED CONFIGURATION &gt;</Link>
-          </RadixLink>
+          {error ? (
+            <Text size="2" color="red">
+              {error}
+            </Text>
+          ) : null}
 
           <Flex gap="3" justify="end" mt="2">
             <Button variant="soft" color="gray" asChild>
               <Link to={`/organizations/${orgId}/projects`}>Cancel</Link>
             </Button>
-            <Button color="green">Create new project</Button>
+            <Button type="submit" disabled={isSubmitting || name.trim().length < 2}>
+              {isSubmitting ? 'Creating...' : 'Create new project'}
+            </Button>
           </Flex>
+          </form>
         </Flex>
       </Card>
     </Box>

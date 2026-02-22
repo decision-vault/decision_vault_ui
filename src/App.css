@@ -1,3 +1,12 @@
+:root {
+  --brand-primary: #5c53fb;
+  --brand-secondary: #3b97fb;
+  --brand-accent: #59e2fc;
+  --brand-ink: #000000;
+  --brand-soft: #eef0ff;
+  --brand-soft-2: #e8f5ff;
+}
+
 #root {
   min-height: 100vh;
 }
@@ -49,9 +58,9 @@
 }
 
 .project-item.active {
-  background: #05070d;
+  background: var(--brand-primary);
   color: white;
-  border-color: #05070d;
+  border-color: var(--brand-primary);
 }
 
 .project-item.ghost {
@@ -100,7 +109,7 @@
 }
 
 .menu-item.active {
-  background: #eceff5;
+  background: var(--brand-soft);
   color: #121722;
   font-weight: 600;
 }
@@ -111,7 +120,7 @@
   border-radius: 6px;
   font-size: 0.72rem;
   padding: 0 0.3rem;
-  background: #eceff3;
+  background: var(--brand-soft-2);
   color: #4b5565;
   display: inline-grid;
   place-items: center;
@@ -156,7 +165,7 @@
 
 .mention {
   margin-top: 0.65rem;
-  color: #255da8;
+  color: var(--brand-secondary);
 }
 
 .link-card {
@@ -247,11 +256,11 @@
 .activity-dot {
   height: 12px;
   border-radius: 3px;
-  background: #dbe3db;
+  background: #dbe6ff;
 }
 
 .activity-dot.active {
-  background: #7ecf95;
+  background: var(--brand-accent);
 }
 
 @media (max-width: 1400px) {

@@ -4,7 +4,7 @@ import { AuthShell } from '../../components/auth/AuthShell'
 
 export function ForgotPasswordPage() {
   return (
-    <AuthShell title="Reset your password" subtitle="We'll email you a reset link">
+    <AuthShell title="Reset your password" subtitle="We’ll email you a reset link">
       <Flex direction="column" gap="3">
         <Flex direction="column" gap="1">
           <Text as="label" size="2" weight="medium">
@@ -13,7 +13,7 @@ export function ForgotPasswordPage() {
           <TextField.Root type="email" placeholder="you@example.com" size="3" variant="surface" />
         </Flex>
 
-        <Button size="3" color="green" style={{ width: '100%' }}>
+        <Button size="3" style={{ width: '100%' }}>
           Send reset link
         </Button>
 
@@ -29,7 +29,7 @@ export function ForgotPasswordPage() {
 
       <Box mt="4">
         <Text size="1" color="gray">
-          By continuing, you agree to Supabase&apos;s{' '}
+          By continuing, you agree to DecisionVault&apos;s{' '}
           <RadixLink asChild>
             <Link to="/terms">Terms of Service</Link>
           </RadixLink>{' '}
@@ -37,7 +37,7 @@ export function ForgotPasswordPage() {
           <RadixLink asChild>
             <Link to="/privacy">Privacy Policy</Link>
           </RadixLink>
-          , and to receive periodic emails with updates.
+          .
         </Text>
       </Box>
     </AuthShell>

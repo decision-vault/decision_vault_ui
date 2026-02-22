@@ -59,7 +59,7 @@ function InfoTab() {
           <Flex align="center" gap="2">
             <SunIcon width="16" height="16" style={{ color: 'var(--gray-10)', flexShrink: 0 }} />
             <Text size="2" color="gray">Status</Text>
-            <Badge size="1" color="green" variant="soft" style={{ marginLeft: 'auto' }}>Active</Badge>
+            <Badge size="1" variant="soft" style={{ marginLeft: 'auto' }}>Active</Badge>
           </Flex>
           <Flex align="center" gap="2">
             <SymbolIcon width="16" height="16" style={{ color: 'var(--gray-10)', flexShrink: 0 }} />

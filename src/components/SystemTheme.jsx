@@ -20,7 +20,7 @@ export function SystemTheme({ children }) {
   return (
     <Theme
       appearance={isDark ? 'dark' : 'light'}
-      accentColor="green"
+      accentColor="indigo"
       grayColor="slate"
       radius="medium"
     >

@@ -9,8 +9,11 @@ import {
   Avatar,
   TextField,
   Kbd,
+  DropdownMenu,
 } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, QuestionMarkCircledIcon } from '@radix-ui/react-icons'
+import logo from '../../assets/logo.svg'
+import { useAuth } from '../../auth/AuthContext'
 
 const navTitleByPath = {
   '/organizations': 'Organizations',
@@ -24,6 +27,14 @@ function getNavTitle(pathname) {
 export function OrgLayout() {
   const location = useLocation()
   const title = getNavTitle(location.pathname)
+  const { sessionUser, refreshSession, signOut } = useAuth()
+  const initials = (sessionUser?.email || 'DV')
+    .split('@')[0]
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase())
+    .slice(0, 2)
+    .join('') || 'DV'
 
   return (
     <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -39,15 +50,20 @@ export function OrgLayout() {
       >
         <Flex align="center" gap="2">
           <Box
+            asChild
             style={{
-              width: 24,
-              height: 24,
-              background: 'var(--accent-9)',
-              borderRadius: 6,
-              clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+              width: 35,
+              height: 35,
+              borderRadius: 8,
+              overflow: 'hidden',
             }}
-          />
-          <Text size="4" weight="bold">
+          >
+            <img src={logo} alt="DecisionVault logo" />
+          </Box>
+          <Text size="3" weight="bold">
+            DecisionVault
+          </Text>
+          <Text size="2" color="gray">
             {title}
           </Text>
         </Flex>
@@ -86,7 +102,32 @@ export function OrgLayout() {
               }}
             />
           </IconButton>
-          <Avatar size="2" radius="full" fallback="K" />
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <IconButton variant="ghost" size="2" radius="full" aria-label="Account">
+                <Avatar size="2" radius="full" fallback={initials} />
+              </IconButton>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end" size="2">
+              <DropdownMenu.Label>Session</DropdownMenu.Label>
+              <DropdownMenu.Item disabled>
+                {sessionUser?.email || 'No email'}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item disabled>
+                Role: {sessionUser?.role || 'unknown'}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item disabled>
+                Org: {sessionUser?.tenant_name || 'unknown'}
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={() => void refreshSession()}>
+                Refresh session
+              </DropdownMenu.Item>
+              <DropdownMenu.Item color="red" onSelect={signOut}>
+                Sign out
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         </Flex>
       </Flex>
 

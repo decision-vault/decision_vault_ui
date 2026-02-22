@@ -9,27 +9,15 @@ import {
   Avatar,
   TextField,
   Kbd,
-  Badge,
+  DropdownMenu,
 } from '@radix-ui/themes'
 import {
   MagnifyingGlassIcon,
   QuestionMarkCircledIcon,
   ChevronDownIcon,
 } from '@radix-ui/react-icons'
-import {
-  ViewGridIcon,
-  PersonIcon,
-  TableIcon,
-  BarChartIcon,
-  GearIcon,
-} from '@radix-ui/react-icons'
-
-const ORG_NAMES = {
-  '1': 'bloom-majesty',
-  '2': 'bm',
-  '3': 'kvstudio',
-  '4': 'kavi',
-}
+import logo from '../../assets/logo.svg'
+import { useAuth } from '../../auth/AuthContext'
 
 const PROJECT_NAMES = {
   '1': 'meny-app',
@@ -37,17 +25,28 @@ const PROJECT_NAMES = {
 
 function getContextTitle(pathname, projectId) {
   if (pathname.endsWith('/new')) return 'New project'
+  if (pathname.includes('/connectors')) return 'Connectors'
+  if (pathname.includes('/llm-config')) return 'LLM config'
+  if (pathname.includes('/team')) return 'Team'
+  if (pathname.includes('/settings')) return 'Settings'
   if (pathname.includes('/dashboard')) return 'Dashboard'
   if (projectId && PROJECT_NAMES[projectId]) return PROJECT_NAMES[projectId]
   return 'Projects'
 }
 
 export function ProjectLayout() {
-  const { orgId, projectId } = useParams()
+  const { projectId } = useParams()
   const location = useLocation()
-  const orgName = ORG_NAMES[orgId] ?? orgId ?? 'Organization'
+  const { sessionUser, refreshSession, signOut } = useAuth()
+  const orgName = sessionUser?.tenant_name || 'Organization'
   const contextTitle = getContextTitle(location.pathname, projectId)
-
+  const initials = (sessionUser?.email || 'DV')
+    .split('@')[0]
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase())
+    .slice(0, 2)
+    .join('') || 'DV'
   return (
     <Box style={{ height: '100vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       <Flex
@@ -62,25 +61,25 @@ export function ProjectLayout() {
       >
         <Flex align="center" gap="3">
           <Box
+            asChild
             style={{
-              width: 24,
-              height: 24,
-              background: 'var(--accent-9)',
-              borderRadius: 6,
-              clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
+              width: 35,
+              height: 35,
+              borderRadius: 8,
+              overflow: 'hidden',
             }}
-          />
+          >
+            <img src={logo} alt="DecisionVault logo" />
+          </Box>
           <Flex align="center" gap="2">
             <RadixLink asChild>
               <Link to="/organizations">
-                <Text size="4" weight="bold">
-                  {orgName}
+                <Text size="3" weight="bold">
+                  DecisionVault
                 </Text>
               </Link>
             </RadixLink>
-            <Badge size="1" color="gray">
-              FREE
-            </Badge>
+            <Text size="2" color="gray">{orgName}</Text>
             <IconButton variant="ghost" size="1" radius="full" aria-label="Switch organization">
               <ChevronDownIcon width="14" height="14" />
             </IconButton>
@@ -120,65 +119,34 @@ export function ProjectLayout() {
               }}
             />
           </IconButton>
-          <Avatar size="2" radius="full" fallback="K" />
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <IconButton variant="ghost" size="2" radius="full" aria-label="Account">
+                <Avatar size="2" radius="full" fallback={initials} />
+              </IconButton>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align="end" size="2">
+              <DropdownMenu.Label>Session</DropdownMenu.Label>
+              <DropdownMenu.Item disabled>{sessionUser?.email || 'No email'}</DropdownMenu.Item>
+              <DropdownMenu.Item disabled>
+                Role: {sessionUser?.role || 'unknown'}
+              </DropdownMenu.Item>
+              <DropdownMenu.Item disabled>
+                Org: {sessionUser?.tenant_name || 'unknown'}
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={() => void refreshSession()}>
+                Refresh session
+              </DropdownMenu.Item>
+              <DropdownMenu.Item color="red" onSelect={signOut}>
+                Sign out
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
         </Flex>
       </Flex>
 
       <Flex style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-        {!location.pathname.includes('/mvp/doc') && (
-          <Flex
-            direction="column"
-            align="center"
-            gap="2"
-            p="2"
-            style={{
-              width: 56,
-              borderRight: '1px solid var(--gray-6)',
-              background: 'var(--color-panel-translucent)',
-            }}
-          >
-            <IconButton
-              variant={location.pathname.includes('/dashboard') ? 'ghost' : 'soft'}
-              size="3"
-              radius="full"
-              aria-label="Projects"
-              title="Projects"
-              asChild
-            >
-              <Link to={`/organizations/${orgId}/projects${projectId ? `/${projectId}` : ''}`}>
-                <ViewGridIcon width="20" height="20" />
-              </Link>
-            </IconButton>
-            {projectId && (
-              <IconButton
-                variant={location.pathname.includes('/dashboard') ? 'soft' : 'ghost'}
-                size="3"
-                radius="full"
-                aria-label="Dashboard"
-                title="Dashboard"
-                asChild
-              >
-                <Link to={`/organizations/${orgId}/projects/${projectId}/dashboard`}>
-                  <BarChartIcon width="20" height="20" />
-                </Link>
-              </IconButton>
-            )}
-            <IconButton variant="ghost" size="3" radius="full" aria-label="Team" title="Team">
-              <PersonIcon width="20" height="20" />
-            </IconButton>
-            <IconButton variant="ghost" size="3" radius="full" aria-label="Table" title="Table">
-              <TableIcon width="20" height="20" />
-            </IconButton>
-            <IconButton variant="ghost" size="3" radius="full" aria-label="Analytics" title="Analytics">
-              <BarChartIcon width="20" height="20" />
-            </IconButton>
-            <Box style={{ flex: 1 }} />
-            <IconButton variant="ghost" size="3" radius="full" aria-label="Settings" title="Settings">
-              <GearIcon width="20" height="20" />
-            </IconButton>
-          </Flex>
-        )}
-
         <Box
           style={{
             flex: 1,

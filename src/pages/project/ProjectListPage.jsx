@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import {
   Box,
@@ -12,6 +12,7 @@ import {
   IconButton,
   Badge,
   DropdownMenu,
+  Spinner,
 } from '@radix-ui/themes'
 import {
   MagnifyingGlassIcon,
@@ -23,26 +24,142 @@ import {
   PauseIcon,
   InfoCircledIcon,
 } from '@radix-ui/react-icons'
+import { deleteProject, listProjects, restoreProject } from '../../services/projectApi'
 
-const MOCK_PROJECTS = [
-  {
-    id: '1',
-    name: 'meny-app',
-    region: 'AWS | ap-southeast-1',
-    status: 'PAUSED',
-    statusMessage: 'Project is paused',
-  },
-]
+const PROJECT_LIST_VIEW_KEY = 'dv_project_list_view'
+const PROJECT_LIST_STATUS_FILTER_KEY = 'dv_project_list_status_filter'
 
 export function ProjectListPage() {
   const { orgId } = useParams()
   const [search, setSearch] = useState('')
-  const [view, setView] = useState('grid')
-  const projects = MOCK_PROJECTS
-  const filtered = projects.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const [statusFilter, setStatusFilter] = useState(() => {
+    const saved = localStorage.getItem(PROJECT_LIST_STATUS_FILTER_KEY)
+    return saved === 'active' || saved === 'paused' || saved === 'all' ? saved : 'all'
+  })
+  const [view, setView] = useState(() => {
+    const saved = localStorage.getItem(PROJECT_LIST_VIEW_KEY)
+    return saved === 'list' || saved === 'grid' ? saved : 'grid'
+  })
+  const [projects, setProjects] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [deletingId, setDeletingId] = useState('')
+  const [restoringId, setRestoringId] = useState('')
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let mounted = true
+    setIsLoading(true)
+    const timer = setTimeout(() => {
+      ;(async () => {
+        try {
+          const data = await listProjects(orgId, search, statusFilter)
+          if (!mounted) return
+          setProjects(data || [])
+          setError('')
+        } catch (err) {
+          if (!mounted) return
+          setError(err instanceof Error ? err.message : 'Failed to load projects')
+        } finally {
+          if (mounted) setIsLoading(false)
+        }
+      })()
+    }, 250)
+    return () => {
+      mounted = false
+      clearTimeout(timer)
+    }
+  }, [orgId, search, statusFilter])
+
+  useEffect(() => {
+    localStorage.setItem(PROJECT_LIST_VIEW_KEY, view)
+  }, [view])
+
+  useEffect(() => {
+    localStorage.setItem(PROJECT_LIST_STATUS_FILTER_KEY, statusFilter)
+  }, [statusFilter])
+
+  const filtered = useMemo(() => projects, [projects])
+  const isEmpty = projects.length === 0
+
+  const getRestoreLabel = (project) => {
+    if (project.can_restore) return 'Restore'
+    if (!project.restore_available_at) return 'Restore'
+    const restoreAt = new Date(project.restore_available_at).getTime()
+    const mins = Math.max(1, Math.ceil((restoreAt - Date.now()) / 60000))
+    return `Restore in ${mins}m`
+  }
+
+  const onRestoreProject = async (project) => {
+    setError('')
+    setRestoringId(project.id)
+    try {
+      await restoreProject(orgId, project.id)
+      setProjects((prev) =>
+        prev.map((item) =>
+          item.id === project.id
+            ? {
+                ...item,
+                status: 'active',
+                status_message: 'Project restored',
+                can_restore: false,
+                restore_available_at: null,
+              }
+            : item,
+        ),
+      )
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restore project')
+    } finally {
+      setRestoringId('')
+    }
+  }
+
+  const onDeleteProject = async (project) => {
+    const confirmed = window.confirm(`Delete project "${project.name}"?`)
+    if (!confirmed) return
+    setError('')
+    setDeletingId(project.id)
+    try {
+      await deleteProject(orgId, project.id)
+      setProjects((prev) => prev.filter((item) => item.id !== project.id))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete project')
+    } finally {
+      setDeletingId('')
+    }
+  }
+
+  const renderProjectActions = (project) => (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger>
+        <IconButton variant="ghost" size="1" radius="full" aria-label="Options">
+          <DotsVerticalIcon width="16" height="16" />
+        </IconButton>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Content>
+        {(project.status || '').toLowerCase() === 'paused' ? (
+          <DropdownMenu.Item
+            disabled={!project.can_restore || restoringId === project.id}
+            onSelect={() => onRestoreProject(project)}
+          >
+            {getRestoreLabel(project)}
+          </DropdownMenu.Item>
+        ) : (
+          <>
+            <DropdownMenu.Item>Settings</DropdownMenu.Item>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item
+              color="red"
+              disabled={deletingId === project.id}
+              onSelect={() => onDeleteProject(project)}
+            >
+              Delete
+            </DropdownMenu.Item>
+          </>
+        )}
+      </DropdownMenu.Content>
+    </DropdownMenu.Root>
   )
-  const isEmpty = filtered.length === 0
 
   return (
     <Box p="6">
@@ -55,16 +172,32 @@ export function ProjectListPage() {
             size="3"
             variant="surface"
             value={search}
-            onValueChange={setSearch}
+            onChange={(event) => setSearch(event.target.value)}
             style={{ flex: 1, minWidth: 240 }}
           >
             <TextField.Slot side="left">
               <MagnifyingGlassIcon width="18" height="18" />
             </TextField.Slot>
           </TextField.Root>
-          <IconButton variant="soft" size="3" aria-label="Filter">
-            <MixerHorizontalIcon width="18" height="18" />
-          </IconButton>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              <IconButton variant="soft" size="3" aria-label="Filter by status">
+                <MixerHorizontalIcon width="18" height="18" />
+              </IconButton>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content>
+              <DropdownMenu.Label>Project status</DropdownMenu.Label>
+              <DropdownMenu.Item onSelect={() => setStatusFilter('all')}>
+                {statusFilter === 'all' ? '✓ ' : ''}All
+              </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setStatusFilter('active')}>
+                {statusFilter === 'active' ? '✓ ' : ''}Active
+              </DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setStatusFilter('paused')}>
+                {statusFilter === 'paused' ? '✓ ' : ''}Paused
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
           <IconButton
             variant={view === 'grid' ? 'soft' : 'ghost'}
             size="3"
@@ -81,7 +214,7 @@ export function ProjectListPage() {
           >
             <ListBulletIcon width="18" height="18" />
           </IconButton>
-          <Button size="3" color="green" asChild>
+          <Button size="3" asChild>
             <Link to={`/organizations/${orgId}/projects/new`}>
               <PlusIcon width="18" height="18" />
               New project
@@ -89,7 +222,19 @@ export function ProjectListPage() {
           </Button>
         </Flex>
 
-        {isEmpty ? (
+        {isLoading ? (
+          <Flex justify="center" p="6">
+            <Spinner />
+          </Flex>
+        ) : null}
+
+        {error ? (
+          <Text size="2" color="red">
+            {error}
+          </Text>
+        ) : null}
+
+        {!isLoading && !error && isEmpty ? (
           <Card
             variant="surface"
             size="3"
@@ -133,7 +278,7 @@ export function ProjectListPage() {
               </Button>
             </Flex>
           </Card>
-        ) : (
+        ) : view === 'grid' ? (
           <Grid
             columns={{ initial: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }}
             gap="4"
@@ -146,36 +291,25 @@ export function ProjectListPage() {
                 >
                   <Flex direction="column" gap="2">
                     <Flex justify="between" align="start">
-                      <Text size="3" weight="bold" trim="end">
-                        {project.name}
-                      </Text>
+                    <Text size="3" weight="bold" trim="end">
+                      {project.name}
+                    </Text>
                       <Box onClick={(e) => e.stopPropagation()} style={{ margin: -4 }}>
-                        <DropdownMenu.Root>
-                          <DropdownMenu.Trigger>
-                            <IconButton variant="ghost" size="1" radius="full" aria-label="Options">
-                              <DotsVerticalIcon width="16" height="16" />
-                            </IconButton>
-                          </DropdownMenu.Trigger>
-                          <DropdownMenu.Content>
-                            <DropdownMenu.Item>Restore</DropdownMenu.Item>
-                            <DropdownMenu.Item>Settings</DropdownMenu.Item>
-                            <DropdownMenu.Separator />
-                            <DropdownMenu.Item color="red">Delete</DropdownMenu.Item>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Root>
+                        {renderProjectActions(project)}
                       </Box>
                     </Flex>
-                    <Text size="2" color="gray">
-                      {project.region}
-                    </Text>
-                    <Badge size="1" color="gray">
-                      {project.status}
+                    <Text size="2" color="gray">{project.region || 'Region not set'}</Text>
+                    <Badge
+                      size="1"
+                      color={(project.status || 'active') === 'paused' ? 'amber' : 'green'}
+                    >
+                      {(project.status || 'active').toUpperCase()}
                     </Badge>
                     <Flex align="center" gap="1">
                       <PauseIcon width="14" height="14" style={{ opacity: 0.7 }} />
                       <InfoCircledIcon width="14" height="14" style={{ opacity: 0.7 }} />
                       <Text size="1" color="gray">
-                        {project.statusMessage}
+                        {project.status_message || project.statusMessage || 'Project ready'}
                       </Text>
                     </Flex>
                   </Flex>
@@ -183,6 +317,57 @@ export function ProjectListPage() {
               </Card>
             ))}
           </Grid>
+        ) : (
+          <Flex direction="column" gap="3">
+            {filtered.map((project) => (
+              <Card key={project.id} variant="surface" size="3">
+                <Flex align="center" justify="between" gap="3">
+                  <Box asChild style={{ minWidth: 0, flex: 1 }}>
+                    <Link
+                      to={`/organizations/${orgId}/projects/${project.id}`}
+                      style={{ textDecoration: 'none', color: 'inherit' }}
+                    >
+                      <Flex align="center" gap="3" style={{ minWidth: 0 }}>
+                        <Box
+                          style={{
+                            width: 36,
+                            height: 36,
+                            borderRadius: 10,
+                            background: 'var(--gray-4)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            flexShrink: 0,
+                          }}
+                        >
+                          <ViewGridIcon width="16" height="16" />
+                        </Box>
+                        <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
+                          <Text size="3" weight="medium" trim="end">
+                            {project.name}
+                          </Text>
+                          <Flex align="center" gap="2" wrap="wrap">
+                            <Badge
+                              size="1"
+                              color={(project.status || 'active') === 'paused' ? 'amber' : 'green'}
+                            >
+                              {(project.status || 'active').toUpperCase()}
+                            </Badge>
+                            <Text size="1" color="gray">
+                              {project.region || 'Region not set'}
+                            </Text>
+                            <Text size="1" color="gray">
+                              {project.status_message || project.statusMessage || 'Project ready'}
+                            </Text>
+                          </Flex>
+                        </Flex>
+                      </Flex>
+                    </Link>
+                  </Box>
+                  <Box onClick={(e) => e.stopPropagation()}>{renderProjectActions(project)}</Box>
+                </Flex>
+              </Card>
+            ))}
+          </Flex>
         )}
       </Flex>
     </Box>

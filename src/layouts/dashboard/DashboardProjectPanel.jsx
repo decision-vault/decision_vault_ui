@@ -30,14 +30,14 @@ export function DashboardProjectPanel() {
         title="Projects"
         style={{ background: 'var(--gray-12)', color: 'var(--gray-1)' }}
       >
-        <Text size="2" weight="bold">C</Text>
+        <Text size="2" weight="bold">D</Text>
       </IconButton>
-      <IconButton variant="ghost" size="3" radius="default" aria-label="Analytics" title="Analytics">
+      {/* <IconButton variant="ghost" size="3" radius="default" aria-label="Analytics" title="Analytics">
         <BarChartIcon width="20" height="20" />
       </IconButton>
       <IconButton variant="ghost" size="3" radius="default" aria-label="Insights" title="Insights">
         <PieChartIcon width="20" height="20" />
-      </IconButton>
+      </IconButton> */}
       <IconButton variant="soft" size="3" radius="default" aria-label="Add project" title="Add project" style={{ marginTop: 4 }}>
         <PlusIcon width="20" height="20" />
       </IconButton>
