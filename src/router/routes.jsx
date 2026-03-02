@@ -24,6 +24,8 @@ import { ProjectTeamPage } from '../pages/project/ProjectTeamPage'
 import { ProjectSettingsPage } from '../pages/project/ProjectSettingsPage'
 import { ProjectLogsPage } from '../pages/project/ProjectLogsPage'
 import { MessengerPage } from '../pages/project/MessengerPage'
+import { PersonalChatPage } from '../pages/project/PersonalChatPage'
+import { GeneratedPrdViewPage } from '../pages/project/GeneratedPrdViewPage'
 import { GuestRoute, ProtectedRoute } from '../auth/ProtectedRoute'
 
 function RedirectToProjectDashboard() {
@@ -71,7 +73,9 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <InputMainPage /> },
+      { path: 'prd-view', element: <GeneratedPrdViewPage /> },
       { path: 'messenger', element: <MessengerPage /> },
+      { path: 'personal/:chatId', element: <PersonalChatPage /> },
       { path: 'overview', element: <DashboardPage /> },
       { path: 'channel/:channelId', element: <ChannelThreadPage /> },
       { path: 'slack/:slackChannelId', element: <ChannelThreadPage /> },

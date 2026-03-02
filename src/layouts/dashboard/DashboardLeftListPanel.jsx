@@ -180,9 +180,9 @@ export function DashboardLeftListPanel() {
     async function loadChannels() {
       if (!orgId || !projectId) return
       try {
-        const data = await listChannels(orgId, projectId)
+        const channelData = await listChannels(orgId, projectId)
         if (!mounted) return
-        setChannels(data || [])
+        setChannels(channelData || [])
       } catch {
         if (!mounted) return
         setChannels([])
@@ -241,7 +241,8 @@ export function DashboardLeftListPanel() {
   const isMessengerActive =
     location.pathname.includes('/messenger') ||
     location.pathname.includes('/channel/') ||
-    location.pathname.includes('/slack/')
+    location.pathname.includes('/slack/') ||
+    location.pathname.includes('/personal/')
 
   const createChannelHandler = async () => {
     const name = newChannelName.trim()

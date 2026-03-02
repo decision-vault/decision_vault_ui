@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Box, Flex, Text, Button, TextArea } from '@radix-ui/themes'
 import { ArrowLeftIcon, ArrowUpIcon } from '@radix-ui/react-icons'
-import ReactMarkdown from 'react-markdown'
+import { MarkdownDocViewer } from '../../components/docs/MarkdownDocViewer'
 import { PRD_CONTENT } from './content/prdContent'
 import { SYSTEM_DESIGN_CONTENT } from './content/systemDesignContent'
 import { TERRAFORM_CONTENT } from './content/terraformContent'
@@ -205,34 +205,7 @@ export function MvpDocViewPage() {
               }}
             />
           ) : docContent ? (
-            <Box className="md-doc-viewer" style={{ maxWidth: 720, margin: '0 auto' }}>
-              <ReactMarkdown
-                components={{
-                  h1: ({ children }) => <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: 12 }}>{children}</h1>,
-                  h2: ({ children }) => <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginTop: 24, marginBottom: 8 }}>{children}</h2>,
-                  h3: ({ children }) => <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginTop: 16, marginBottom: 6 }}>{children}</h3>,
-                  p: ({ children }) => <p style={{ marginBottom: 12, lineHeight: 1.6 }}>{children}</p>,
-                  ul: ({ children }) => <ul style={{ marginBottom: 12, paddingLeft: 24 }}>{children}</ul>,
-                  ol: ({ children }) => <ol style={{ marginBottom: 12, paddingLeft: 24 }}>{children}</ol>,
-                  li: ({ children }) => <li style={{ marginBottom: 4 }}>{children}</li>,
-                  table: ({ children }) => (
-                    <div style={{ overflow: 'auto', marginBottom: 16 }}>
-                      <table style={{ borderCollapse: 'collapse', width: '100%' }}>{children}</table>
-                    </div>
-                  ),
-                  th: ({ children }) => (
-                    <th style={{ border: '1px solid var(--gray-7)', padding: '8px 12px', textAlign: 'left', background: 'var(--gray-3)' }}>
-                      {children}
-                    </th>
-                  ),
-                  td: ({ children }) => <td style={{ border: '1px solid var(--gray-6)', padding: '8px 12px' }}>{children}</td>,
-                  strong: ({ children }) => <strong style={{ fontWeight: 600 }}>{children}</strong>,
-                  hr: () => <hr style={{ border: 'none', borderTop: '1px solid var(--gray-6)', margin: '24px 0' }} />,
-                }}
-              >
-                {docContent}
-              </ReactMarkdown>
-            </Box>
+            <MarkdownDocViewer markdown={docContent} maxWidth={720} />
           ) : !hasDocContent ? (
             <Box p="6" style={{ borderRadius: 'var(--radius-3)', background: 'var(--gray-3)', border: '1px dashed var(--gray-6)' }}>
               <Text size="2" color="gray">

@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { Box, Flex, Text, Button, TextArea } from '@radix-ui/themes'
+import { useState, useCallback } from 'react'
+import { useEffect } from 'react'
+import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
+import { Box, Flex, Text, Button, TextArea, Select } from '@radix-ui/themes'
 import { ArrowLeftIcon, ArrowUpIcon } from '@radix-ui/react-icons'
 import ReactMarkdown from 'react-markdown'
 import {
@@ -11,166 +12,337 @@ import {
   useEdgesState,
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
+import './schemaViewer.css'
 import SchemaTableNode from './SchemaTableNode'
 import {
-  TABLE_NODE_TYPE,
-  buildInitialNodes,
-  buildInitialEdges,
-} from './schemaFlowData'
+  getLatestRequirementsStatus,
+  getSchemaFlow,
+  getSchemaFlowVersion,
+  getSchemaFlowVersions,
+  getSchemaFlowRunStatus,
+  startSchemaFlowRun,
+} from '../../../services/requirementsApi'
+import { TABLE_NODE_TYPE } from './schemaFlowData'
 
 const nodeTypes = { [TABLE_NODE_TYPE]: SchemaTableNode }
 
-const MOCK_SCHEMA_SUGGESTIONS = [
-  {
-    label: 'Add audit_log table',
-    prompt: 'Add an audit_log table linked to users for tracking actions.',
-    applyChange: (nodes, edges) => {
-      if (nodes.some((n) => n.id === 'audit_log')) return { nodes, edges }
-      const newNode = {
-        id: 'audit_log',
+function normalizeSchemaFlowResponse(resp) {
+  const rawNodes = Array.isArray(resp?.nodes) ? resp.nodes : []
+  const rawEdges = Array.isArray(resp?.edges) ? resp.edges : []
+
+  const nodes = rawNodes
+    .map((node, idx) => {
+      const tableName = node?.data?.tableName || node?.data?.table_name || node?.tableName || node?.table_name || ''
+      const columnsRaw = Array.isArray(node?.data?.columns) ? node.data.columns : (Array.isArray(node?.columns) ? node.columns : [])
+      const columns = columnsRaw
+        .map((c) => ({
+          name: String(c?.name || '').trim(),
+          type: String(c?.type || '').trim(),
+          primaryKey: Boolean(c?.primaryKey ?? c?.primary_key),
+          unique: Boolean(c?.unique),
+        }))
+        .filter((c) => c.name && c.type)
+
+      const id = String(node?.id || tableName || `table_${idx}`)
+      const pos = node?.position || {}
+      const x = Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 120 + (idx % 4) * 260
+      const y = Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 80 + Math.floor(idx / 4) * 220
+
+      if (!tableName) return null
+      return {
+        id,
         type: TABLE_NODE_TYPE,
-        position: { x: 740, y: 400 },
-        data: {
-          tableName: 'audit_log',
-          columns: [
-            { name: 'id', type: 'uuid', primaryKey: true, unique: false },
-            { name: 'user_id', type: 'uuid', primaryKey: false, unique: false },
-            { name: 'action', type: 'text', primaryKey: false, unique: false },
-            { name: 'created_at', type: 'timestamptz', primaryKey: false, unique: false },
-          ],
-        },
+        position: { x, y },
+        data: { tableName, columns },
       }
-      const newEdge = {
-        id: 'e-users-audit_log',
-        source: 'users',
-        target: 'audit_log',
-        sourceHandle: 'id-out',
-        targetHandle: 'user_id-in',
-        style: { strokeDasharray: '5 5' },
-      }
+    })
+    .filter(Boolean)
+
+  const nodeIds = new Set(nodes.map((n) => n.id))
+  const nodeById = new Map(nodes.map((n) => [n.id, n]))
+
+  const resolveTargetHandle = (targetId, rawHandle) => {
+    const targetNode = nodeById.get(targetId)
+    const cols = Array.isArray(targetNode?.data?.columns) ? targetNode.data.columns : []
+    if (cols.length === 0) return null
+    const raw = String(rawHandle || '').trim()
+    if (raw && cols.some((c) => c.name === raw)) return `${raw}-in`
+    return `${cols[0].name}-in`
+  }
+
+  const resolveSourceHandle = (sourceId, rawHandle) => {
+    const sourceNode = nodeById.get(sourceId)
+    const cols = Array.isArray(sourceNode?.data?.columns) ? sourceNode.data.columns : []
+    if (cols.length === 0) return null
+    const pkCols = cols.filter((c) => c.primaryKey)
+    const raw = String(rawHandle || '').trim()
+    if (raw) {
+      const matched = cols.find((c) => c.name === raw)
+      if (matched?.primaryKey) return `${raw}-out`
+    }
+    if (pkCols.length > 0) return `${pkCols[0].name}-out`
+    return null
+  }
+
+  const edges = rawEdges
+    .map((edge, idx) => {
+      const source = String(edge?.source || '').trim()
+      const target = String(edge?.target || '').trim()
+      if (!source || !target || !nodeIds.has(source) || !nodeIds.has(target)) return null
       return {
-        nodes: [...nodes, newNode],
-        edges: [...edges, newEdge],
+        id: String(edge?.id || `e-${source}-${target}-${idx}`),
+        source,
+        target,
+        sourceHandle: resolveSourceHandle(source, edge?.sourceHandle || edge?.source_handle),
+        targetHandle: resolveTargetHandle(target, edge?.targetHandle || edge?.target_handle),
+        type: 'smoothstep',
+        animated: false,
+        style: { stroke: '#8f96a3', strokeWidth: 1.4, strokeDasharray: '6 6' },
       }
-    },
-    summary: '**Changes applied:**\n• Added **audit_log** table with columns: id, user_id, action, created_at.\n• Linked **users.id** → **audit_log.user_id**.\n• Schema diagram updated.',
-  },
-  {
-    label: 'Add role column to users',
-    prompt: 'Add a display_name column to the users table.',
-    applyChange: (nodes, edges) => {
-      return {
-        nodes: nodes.map((n) => {
-          if (n.id !== 'users') return n
-          const cols = n.data.columns || []
-          if (cols.some((c) => c.name === 'display_name')) return n
-          return {
-            ...n,
-            data: {
-              ...n.data,
-              columns: [...cols, { name: 'display_name', type: 'text', primaryKey: false, unique: false }],
-            },
-          }
-        }),
-        edges,
-      }
-    },
-    summary: '**Changes applied:**\n• Added **display_name** (text) to **users** table.\n• Schema diagram updated.',
-  },
-  {
-    label: 'Add metric_value_history table',
-    prompt: 'Add a metric_value_history table to track metric value over time.',
-    applyChange: (nodes, edges) => {
-      if (nodes.some((n) => n.id === 'metric_value_history')) return { nodes, edges }
-      const newNode = {
-        id: 'metric_value_history',
-        type: TABLE_NODE_TYPE,
-        position: { x: 100, y: 520 },
-        data: {
-          tableName: 'metric_value_history',
-          columns: [
-            { name: 'id', type: 'uuid', primaryKey: true, unique: false },
-            { name: 'metric_id', type: 'uuid', primaryKey: false, unique: false },
-            { name: 'value', type: 'numeric', primaryKey: false, unique: false },
-            { name: 'recorded_at', type: 'timestamptz', primaryKey: false, unique: false },
-          ],
-        },
-      }
-      const newEdge = {
-        id: 'e-metric-metric_value_history',
-        source: 'metric',
-        target: 'metric_value_history',
-        sourceHandle: 'id-out',
-        targetHandle: 'metric_id-in',
-        style: { strokeDasharray: '5 5' },
-      }
-      return {
-        nodes: [...nodes, newNode],
-        edges: [...edges, newEdge],
-      }
-    },
-    summary: '**Changes applied:**\n• Added **metric_value_history** table (id, metric_id, value, recorded_at).\n• Linked **metric.id** → **metric_value_history.metric_id**.\n• Schema diagram updated.',
-  },
-]
+    })
+    .filter(Boolean)
+
+  return {
+    nodes,
+    edges,
+    summary: String(resp?.summary || ''),
+    exists: Boolean(resp?.exists),
+  }
+}
 
 export function SchemaFlowPage() {
   const { orgId, projectId } = useParams()
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const [intakeId, setIntakeId] = useState(searchParams.get('intake_id') || '')
+  const [runId, setRunId] = useState(searchParams.get('run_id') || '')
+  const [runStatus, setRunStatus] = useState('')
+  const [runSteps, setRunSteps] = useState([])
+  const [versions, setVersions] = useState([])
+  const [selectedVersion, setSelectedVersion] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [editMessages, setEditMessages] = useState([])
-  const [nodes, setNodes, onNodesChange] = useNodesState(buildInitialNodes())
-  const [edges, setEdges, onEdgesChange] = useEdgesState(buildInitialEdges())
-  const [isTyping, setIsTyping] = useState(false)
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
   const [isAgentProcessing, setIsAgentProcessing] = useState(false)
-  const pendingMockEditRef = useRef(null)
+  const [loadError, setLoadError] = useState('')
+
+  const updateUrlRunId = useCallback((nextRunId) => {
+    const params = new URLSearchParams(window.location.search)
+    if (nextRunId) params.set('run_id', nextRunId)
+    else params.delete('run_id')
+    navigate({ search: params.toString() }, { replace: true })
+  }, [navigate])
+
+  const applySchemaResult = useCallback((resp) => {
+    const mapped = normalizeSchemaFlowResponse(resp)
+    if (mapped.nodes.length > 0) {
+      setNodes(mapped.nodes)
+      setEdges(mapped.edges)
+    }
+    if (mapped.summary) {
+      setEditMessages((prev) => [...prev, { role: 'assistant', text: mapped.summary }])
+    }
+    if (resp?.version !== undefined && resp?.version !== null) {
+      setSelectedVersion(String(resp.version))
+    }
+  }, [setEdges, setNodes])
+
+  const loadVersions = useCallback(async (resolvedIntake) => {
+    if (!orgId || !projectId || !resolvedIntake) return
+    try {
+      const resp = await getSchemaFlowVersions(orgId, projectId, resolvedIntake)
+      const items = Array.isArray(resp?.items) ? resp.items : []
+      setVersions(items)
+      if (!selectedVersion && items.length > 0) {
+        const latest = items[0]?.version_number
+        if (latest !== undefined && latest !== null) {
+          setSelectedVersion(String(latest))
+        }
+      }
+    } catch {
+      setVersions([])
+    }
+  }, [orgId, projectId, selectedVersion])
+
+  const startRun = useCallback(async (resolvedIntake, request, currentNodes, currentEdges) => {
+    if (!orgId || !projectId || !resolvedIntake) return
+    const started = await startSchemaFlowRun(orgId, projectId, resolvedIntake, {
+      request,
+      nodes: currentNodes || [],
+      edges: currentEdges || [],
+    })
+    const nextRunId = started?.run_id || ''
+    setRunId(nextRunId)
+    setRunStatus(started?.status || 'queued')
+    if (nextRunId) updateUrlRunId(nextRunId)
+  }, [orgId, projectId, updateUrlRunId])
+
+  useEffect(() => {
+    let mounted = true
+    const load = async () => {
+      if (!orgId || !projectId) return
+      let resolvedIntake = searchParams.get('intake_id') || ''
+      const resolvedRunId = searchParams.get('run_id') || ''
+      const resolvedVersion = searchParams.get('version') || ''
+      if (!resolvedIntake) {
+        try {
+          const latest = await getLatestRequirementsStatus(orgId, projectId)
+          resolvedIntake = latest?.intake_id || ''
+        } catch {
+          // ignore
+        }
+      }
+      if (!mounted || !resolvedIntake) return
+      setIntakeId(resolvedIntake)
+      if (resolvedRunId) setRunId(resolvedRunId)
+      setIsAgentProcessing(true)
+      try {
+        const saved = resolvedVersion
+          ? await getSchemaFlowVersion(orgId, projectId, resolvedIntake, Number(resolvedVersion))
+          : await getSchemaFlow(orgId, projectId, resolvedIntake)
+        if (!mounted) return
+        const mapped = normalizeSchemaFlowResponse(saved)
+        if (mapped.nodes.length > 0 && mapped.exists) {
+          applySchemaResult(saved)
+          await loadVersions(resolvedIntake)
+          if (resolvedVersion) setSelectedVersion(String(resolvedVersion))
+        } else if (!resolvedRunId) {
+          await startRun(
+            resolvedIntake,
+            'Generate initial database schema plan from requirements and architecture inputs.',
+            [],
+            []
+          )
+        }
+      } catch (e) {
+        if (!mounted) return
+        setLoadError(e instanceof Error ? e.message : 'Failed to load schema flow.')
+      } finally {
+        if (mounted) setIsAgentProcessing(false)
+      }
+    }
+    load()
+    return () => {
+      mounted = false
+    }
+  }, [orgId, projectId, searchParams, applySchemaResult, startRun, loadVersions])
+
+  useEffect(() => {
+    if (!orgId || !projectId || !runId) return undefined
+    let stopped = false
+    let polling = false
+    const tick = async () => {
+      if (polling) return
+      polling = true
+      try {
+        const run = await getSchemaFlowRunStatus(orgId, projectId, runId)
+        if (stopped) return
+        setRunStatus(run?.status || '')
+        setRunSteps(Array.isArray(run?.steps) ? run.steps : [])
+        if (run?.status === 'completed') {
+          setIsAgentProcessing(false)
+          if (run?.result) applySchemaResult(run.result)
+          if (intakeId) await loadVersions(intakeId)
+          setRunId('')
+          updateUrlRunId('')
+          return
+        }
+        if (run?.status === 'failed') {
+          setIsAgentProcessing(false)
+          setLoadError(run?.error || 'Schema generation failed.')
+          setRunId('')
+          updateUrlRunId('')
+          return
+        }
+        setIsAgentProcessing(true)
+      } catch (e) {
+        if (stopped) return
+        setIsAgentProcessing(false)
+        setLoadError(e instanceof Error ? e.message : 'Failed to poll schema run status.')
+        setRunId('')
+        updateUrlRunId('')
+      } finally {
+        polling = false
+      }
+    }
+    tick()
+    const id = window.setInterval(tick, 2000)
+    return () => {
+      stopped = true
+      window.clearInterval(id)
+    }
+  }, [orgId, projectId, runId, applySchemaResult, updateUrlRunId, loadVersions, intakeId])
+
+  const handleVersionChange = useCallback(async (value) => {
+    if (!value || !orgId || !projectId || !intakeId) return
+    setSelectedVersion(value)
+    try {
+      const doc = await getSchemaFlowVersion(orgId, projectId, intakeId, Number(value))
+      const mapped = normalizeSchemaFlowResponse(doc)
+      if (mapped.nodes.length > 0) {
+        setNodes(mapped.nodes)
+        setEdges(mapped.edges)
+      }
+      setEditMessages((prev) => [...prev, { role: 'assistant', text: mapped.summary || `Loaded schema version ${value}.` }])
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load schema version.')
+    }
+  }, [orgId, projectId, intakeId, setNodes, setEdges])
+
+  const handleRegenerate = useCallback(async () => {
+    if (!orgId || !projectId || !intakeId || isAgentProcessing || runId) return
+    setLoadError('')
+    setEditMessages((prev) => [
+      ...prev,
+      { role: 'assistant', text: 'Regenerating schema plan from latest requirements and current graph…' },
+    ])
+    setIsAgentProcessing(true)
+    try {
+      await startRun(
+        intakeId,
+        'Regenerate and improve this schema plan. Keep table ids stable when possible and strengthen relationships.',
+        nodes,
+        edges
+      )
+    } catch (e) {
+      setIsAgentProcessing(false)
+      setLoadError(e instanceof Error ? e.message : 'Failed to regenerate schema flow.')
+    }
+  }, [orgId, projectId, intakeId, isAgentProcessing, runId, startRun, nodes, edges])
 
   const handleSendEdit = useCallback(
-    (optionalMessage) => {
+    async (optionalMessage) => {
       const msg = (optionalMessage ?? chatInput).trim()
       if (!msg) return
+      if (!orgId || !projectId || !intakeId) {
+        setLoadError('Requirements intake not found. Complete requirements first.')
+        return
+      }
+      setLoadError('')
+      if (runId) {
+        setLoadError('Schema generation already running. Wait for current run to finish.')
+        return
+      }
       setEditMessages((prev) => [...prev, { role: 'user', text: msg }])
       setChatInput('')
-      const pending = pendingMockEditRef.current
-      pendingMockEditRef.current = null
-      if (pending) {
-        const result = pending.applyChange(nodes, edges)
-        setIsAgentProcessing(true)
-        setTimeout(() => {
-          setNodes(result.nodes)
-          setEdges(result.edges)
-          setEditMessages((prev) => [...prev, { role: 'assistant', text: pending.summary }])
-          setIsAgentProcessing(false)
-        }, 5000)
-      } else {
+      setIsAgentProcessing(true)
+      try {
+        await startRun(intakeId, msg, nodes, edges)
+        setEditMessages((prev) => [...prev, { role: 'assistant', text: 'Schema run started. Applying update…' }])
+      } catch (e) {
         setEditMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            text: '**Edit received.** Describe a schema change (e.g. add a table or column) and use a suggestion below to see it applied to the diagram.',
+            text: e instanceof Error ? e.message : 'Failed to generate schema update.',
           },
         ])
+      } finally {
+        // kept true while status polling is active
       }
     },
-    [chatInput, nodes, edges, setNodes, setEdges]
-  )
-
-  const startMockEdit = useCallback(
-    (suggestion) => {
-      if (isTyping || isAgentProcessing) return
-      const { prompt } = suggestion
-      pendingMockEditRef.current = suggestion
-      setIsTyping(true)
-      let i = 0
-      const id = setInterval(() => {
-        setChatInput((prev) => prev + prompt[i])
-        i += 1
-        if (i >= prompt.length) {
-          clearInterval(id)
-          setIsTyping(false)
-          setTimeout(() => handleSendEdit(prompt), 80)
-        }
-      }, 28)
-    },
-    [isTyping, isAgentProcessing, handleSendEdit]
+    [chatInput, nodes, edges, orgId, projectId, intakeId, runId, startRun]
   )
 
   return (
@@ -196,31 +368,46 @@ export function SchemaFlowPage() {
             </Link>
           </Button>
           <Text size="2" weight="medium">Database schema</Text>
+          <Button
+            size="1"
+            variant="soft"
+            color="indigo"
+            onClick={handleRegenerate}
+            disabled={isAgentProcessing || !!runId || !intakeId}
+          >
+            {isAgentProcessing || runId ? 'Regenerating…' : 'Regenerate'}
+          </Button>
+          <Box style={{ marginLeft: 'auto', minWidth: 160 }}>
+            <Select.Root value={selectedVersion} onValueChange={handleVersionChange}>
+              <Select.Trigger placeholder="Schema Version" />
+              <Select.Content>
+                {versions.length === 0 ? (
+                  <Select.Item value="none" disabled>
+                    No versions
+                  </Select.Item>
+                ) : null}
+                {versions.map((v) => (
+                  <Select.Item key={String(v.version_number)} value={String(v.version_number)}>
+                    {`Version ${v.version_number}`}
+                  </Select.Item>
+                ))}
+              </Select.Content>
+            </Select.Root>
+          </Box>
         </Flex>
         <Box style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
-          {editMessages.length === 0 && !isTyping ? (
+          {editMessages.length === 0 ? (
             <Flex direction="column" gap="3">
+              {loadError ? <Text size="2" color="red">{loadError}</Text> : null}
+              {runId ? (
+                <Text size="2" color="gray">
+                  Run `{runId}` {runStatus || 'running'} {runSteps.length > 0 ? `(${runSteps.length} step)` : ''}
+                </Text>
+              ) : null}
               <Text size="2" color="gray">
-                Ask for schema changes. Try a suggestion to auto-type and see the diagram update:
+                Ask for schema changes to generate and apply updates in the diagram.
               </Text>
-              <Flex wrap="wrap" gap="2">
-                {MOCK_SCHEMA_SUGGESTIONS.map((s, i) => (
-                  <Button
-                    key={i}
-                    size="1"
-                    variant="soft"
-                    disabled={isTyping || isAgentProcessing}
-                    onClick={() => startMockEdit(s)}
-                  >
-                    {s.label}
-                  </Button>
-                ))}
-              </Flex>
             </Flex>
-          ) : editMessages.length === 0 && isTyping ? (
-            <Box p="2" style={{ background: 'var(--gray-3)', borderRadius: 'var(--radius-2)', alignSelf: 'flex-start' }}>
-              <Text size="2" color="gray">Typing…</Text>
-            </Box>
           ) : (
             <Flex direction="column" gap="3">
               {editMessages.map((m, i) => (
@@ -252,9 +439,11 @@ export function SchemaFlowPage() {
                   )}
                 </Box>
               ))}
-              {(isTyping || isAgentProcessing) && (
+              {isAgentProcessing && (
                 <Box p="2" style={{ background: 'var(--gray-3)', borderRadius: 'var(--radius-2)', alignSelf: 'flex-start' }}>
-                  <Text size="2" color="gray">{isTyping ? 'Typing…' : 'Processing…'}</Text>
+                  <Text size="2" color="gray">
+                    {runId ? `Run ${runStatus || 'running'}...` : 'Processing…'}
+                  </Text>
                 </Box>
               )}
             </Flex>
@@ -268,32 +457,42 @@ export function SchemaFlowPage() {
             onChange={(e) => setChatInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendEdit() } }}
             style={{ flex: 1, minHeight: 44, resize: 'none' }}
-            disabled={isTyping || isAgentProcessing}
+            disabled={isAgentProcessing}
           />
-          <Button size="2" onClick={() => handleSendEdit()} disabled={!chatInput.trim() || isTyping || isAgentProcessing}>
+          <Button size="2" onClick={() => handleSendEdit()} disabled={!chatInput.trim() || isAgentProcessing}>
             <ArrowUpIcon width="16" height="16" />
           </Button>
         </Flex>
       </Box>
 
       {/* Right: React Flow diagram */}
-      <Box style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', background: 'var(--gray-2)' }}>
+      <Box style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', background: '#0b0d12' }}>
         {isAgentProcessing ? (
           <Flex align="center" justify="center" style={{ width: '100%', height: '100%', color: 'var(--gray-11)' }}>
             <Text size="2">Loading schema changes…</Text>
           </Flex>
         ) : (
           <ReactFlow
+            className="schema-viewer-flow"
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             nodeTypes={nodeTypes}
             fitView
-            style={{ width: '100%', height: '100%', background: 'var(--gray-2)' }}
-            defaultEdgeOptions={{ style: { stroke: 'var(--gray-8)' } }}
+            style={{
+              width: '100%',
+              height: '100%',
+              background: '#0b0d12',
+              color: '#e5e7eb',
+            }}
+            defaultEdgeOptions={{
+              type: 'smoothstep',
+              animated: false,
+              style: { stroke: '#8f96a3', strokeWidth: 1.4, strokeDasharray: '6 6' },
+            }}
           >
-            <Background gap={16} size={1} color="var(--gray-5)" />
+            <Background variant="dots" gap={18} size={1.2} color="#1f2430" />
             <Controls showInteractive={false} />
           </ReactFlow>
         )}

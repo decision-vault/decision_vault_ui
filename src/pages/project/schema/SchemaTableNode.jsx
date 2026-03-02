@@ -27,49 +27,53 @@ function SchemaTableNode({ data }) {
 
   return (
     <Box
+      className="schema-table-node"
       style={{
-        minWidth: 200,
-        borderRadius: 8,
+        minWidth: 240,
+        borderRadius: 10,
         overflow: 'hidden',
-        background: 'var(--gray-2)',
-        border: '1px solid var(--gray-6)',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        background: '#11141a',
+        border: '1px solid #252a34',
+        boxShadow: '0 8px 22px rgba(0,0,0,0.35)',
       }}
     >
       <Box
+        className="schema-table-node-header"
         style={{
           padding: '8px 12px',
-          background: 'var(--teal-9)',
-          color: 'var(--teal-1)',
+          background: '#0c0e13',
+          color: '#f3f4f6',
           fontWeight: 600,
-          fontSize: 13,
+          fontSize: 12,
+          borderBottom: '1px solid #252a34',
         }}
       >
         {tableName}
       </Box>
-      <Box style={{ padding: '4px 0' }}>
+      <Box style={{ padding: '2px 0' }}>
         {columns.map((col) => (
           <Box
             key={col.name}
+            className="schema-table-node-row"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '4px 12px',
-              fontSize: 12,
+              padding: '5px 12px',
+              fontSize: 11,
               fontFamily: 'ui-monospace, monospace',
-              color: 'var(--gray-12)',
+              color: '#d1d5db',
             }}
           >
-            <Handle type="target" position={Position.Left} id={`${col.name}-in`} style={{ left: 0 }} />
-            <span style={{ flexShrink: 0, color: 'var(--gray-10)', display: 'flex' }}>
+            <Handle type="target" position={Position.Left} id={`${col.name}-in`} style={{ left: -5, width: 8, height: 8, border: '1px solid #6b7280', background: '#0b0d12' }} />
+            <span style={{ flexShrink: 0, color: '#9ca3af', display: 'flex' }}>
               {col.primaryKey ? PK_ICON : col.unique ? UNIQUE_ICON : COLUMN_ICON}
             </span>
-            <Text size="1" style={{ flex: 1, fontWeight: col.primaryKey ? 600 : 400 }}>
+            <Text size="1" style={{ flex: 1, fontWeight: col.primaryKey ? 600 : 400, color: '#f3f4f6' }}>
               {col.primaryKey ? `# ${col.name}` : col.name}
             </Text>
-            <Text size="1" color="gray">{col.type}</Text>
-            {col.primaryKey && <Handle type="source" position={Position.Right} id={`${col.name}-out`} style={{ right: 0 }} />}
+            <Text size="1" style={{ color: '#9ca3af' }}>{col.type}</Text>
+            {col.primaryKey && <Handle type="source" position={Position.Right} id={`${col.name}-out`} style={{ right: -5, width: 8, height: 8, border: '1px solid #6b7280', background: '#0b0d12' }} />}
           </Box>
         ))}
       </Box>

@@ -61,7 +61,11 @@ export function DashboardSidebar({ collapsed, onToggle }) {
       return location.pathname === base
     }
     if (item.key === 'messenger') {
-      return location.pathname.includes('/messenger') || location.pathname.includes('/channel/')
+      return (
+        location.pathname.includes('/messenger') ||
+        location.pathname.includes('/channel/') ||
+        location.pathname.includes('/personal/')
+      )
     }
     if (item.key === 'dashboard') return location.pathname.endsWith('/overview')
     return location.pathname.includes(item.match)

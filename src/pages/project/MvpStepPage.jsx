@@ -1,7 +1,7 @@
 import { useParams } from 'react-router-dom'
 import { MvpDocViewPage } from './MvpDocViewPage'
 import { SchemaFlowPage } from './schema/SchemaFlowPage'
-import { SequenceDiagramPage } from './mermaid/SequenceDiagramPage'
+import { SequenceFlowPage } from './sequence/SequenceFlowPage'
 import { ArchitectureDiagramPage } from './mermaid/ArchitectureDiagramPage'
 import { TaskBreakdownPage } from './tasks/TaskBreakdownPage'
 
@@ -9,7 +9,7 @@ import { TaskBreakdownPage } from './tasks/TaskBreakdownPage'
 export function MvpStepPage() {
   const { stepIndex } = useParams()
   if (stepIndex === '2') return <SchemaFlowPage />
-  if (stepIndex === '3') return <SequenceDiagramPage />
+  if (stepIndex === '3') return <SequenceFlowPage />
   if (stepIndex === '4') return <ArchitectureDiagramPage />
   if (stepIndex === '8') return <TaskBreakdownPage />
   return <MvpDocViewPage />

@@ -31,7 +31,8 @@ export function DashboardLayout() {
   const showLeftListPanel =
     location.pathname.includes('/dashboard/messenger') ||
     location.pathname.includes('/dashboard/channel/') ||
-    location.pathname.includes('/dashboard/slack/')
+    location.pathname.includes('/dashboard/slack/') ||
+    location.pathname.includes('/dashboard/personal/')
 
   return (
     <Box

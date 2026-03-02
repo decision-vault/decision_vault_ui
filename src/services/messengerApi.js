@@ -68,3 +68,42 @@ export function unfavoriteChannel(orgId, projectId, channelId) {
     headers: tenantHeaders(orgId),
   })
 }
+
+export function listPersonalContacts(orgId, projectId) {
+  return apiRequest(`/api/projects/${projectId}/messenger/personal/contacts`, {
+    method: 'GET',
+    headers: tenantHeaders(orgId),
+  })
+}
+
+export function listPersonalChats(orgId, projectId) {
+  return apiRequest(`/api/projects/${projectId}/messenger/personal/chats`, {
+    method: 'GET',
+    headers: tenantHeaders(orgId),
+  })
+}
+
+export function createPersonalChat(orgId, projectId, payload) {
+  return apiRequest(`/api/projects/${projectId}/messenger/personal/chats`, {
+    method: 'POST',
+    headers: tenantHeaders(orgId),
+    body: JSON.stringify(payload),
+  })
+}
+
+export function listPersonalMessages(orgId, projectId, chatId, limit = 200) {
+  const params = new URLSearchParams()
+  params.set('limit', String(limit))
+  return apiRequest(`/api/projects/${projectId}/messenger/personal/chats/${chatId}/messages?${params.toString()}`, {
+    method: 'GET',
+    headers: tenantHeaders(orgId),
+  })
+}
+
+export function createPersonalMessage(orgId, projectId, chatId, payload) {
+  return apiRequest(`/api/projects/${projectId}/messenger/personal/chats/${chatId}/messages`, {
+    method: 'POST',
+    headers: tenantHeaders(orgId),
+    body: JSON.stringify(payload),
+  })
+}
