@@ -16,11 +16,13 @@ import { MarkdownDocViewer } from '../../components/docs/MarkdownDocViewer'
 export function GeneratedPrdViewPage() {
   const { orgId, projectId } = useParams()
   const location = useLocation()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const queryType = searchParams.get('type')
   const docType = (location.state?.docType || (queryType === 'sdd' ? 'SDD' : 'PRD'))
   const [prdMarkdown, setPrdMarkdown] = useState(location.state?.docMarkdown || location.state?.prdMarkdown || '')
-  const [prdVersion, setPrdVersion] = useState(location.state?.docVersion || location.state?.prdVersion || null)
+  const initialVersion = searchParams.get('version') || location.state?.docVersion || location.state?.prdVersion || null
+  const [selectedVersion, setSelectedVersion] = useState(initialVersion ? String(initialVersion) : '')
+  const [displayVersion, setDisplayVersion] = useState(initialVersion ? Number(initialVersion) : null)
   const [versions, setVersions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -43,8 +45,18 @@ export function GeneratedPrdViewPage() {
           if (!mounted) return
           const items = sddVersionsResp?.items || []
           setVersions(items)
-          setPrdVersion(latestSdd?.version || null)
-          setPrdMarkdown(latestSdd?.content || '')
+          const preferredVersion = initialVersion ? Number(initialVersion) : Number(latestSdd?.version || items?.[0]?.version_number || 0)
+          if (preferredVersion) {
+            const doc = await getRequirementsSystemDesignVersion(orgId, projectId, preferredVersion)
+            if (!mounted) return
+            setSelectedVersion(String(preferredVersion))
+            setDisplayVersion(doc?.version || preferredVersion)
+            setPrdMarkdown(doc?.content || '')
+          } else {
+            setSelectedVersion('')
+            setDisplayVersion(latestSdd?.version || null)
+            setPrdMarkdown(latestSdd?.content || '')
+          }
           return
         }
 
@@ -53,16 +65,18 @@ export function GeneratedPrdViewPage() {
         if (!mounted) return
         setVersions(items)
 
-        const selectedVersion = prdVersion || items?.[0]?.version_number
-        if (selectedVersion) {
-          const doc = await getLlmPrdVersion(orgId, projectId, selectedVersion)
+        const preferredVersion = initialVersion ? Number(initialVersion) : Number(items?.[0]?.version_number || 0)
+        if (preferredVersion) {
+          const doc = await getLlmPrdVersion(orgId, projectId, preferredVersion)
           if (!mounted) return
-          setPrdVersion(doc?.version || selectedVersion)
+          setSelectedVersion(String(preferredVersion))
+          setDisplayVersion(doc?.version || preferredVersion)
           setPrdMarkdown(doc?.content || '')
         } else {
           const latest = await getLatestLlmPrd(orgId, projectId)
           if (!mounted) return
-          setPrdVersion(latest?.version || null)
+          setSelectedVersion(latest?.version ? String(latest.version) : '')
+          setDisplayVersion(latest?.version || null)
           setPrdMarkdown(latest?.content || '')
         }
       } catch (e) {
@@ -76,19 +90,23 @@ export function GeneratedPrdViewPage() {
     return () => {
       mounted = false
     }
-  }, [orgId, projectId, docType])
+  }, [orgId, projectId, docType, initialVersion])
 
   const handleVersionChange = async (value) => {
     if (!orgId || !projectId || !value) return
     setLoading(true)
     setError('')
+    setSelectedVersion(String(value))
     try {
       const versionNo = Number(value)
       const doc = docType === 'SDD'
         ? await getRequirementsSystemDesignVersion(orgId, projectId, versionNo)
         : await getLlmPrdVersion(orgId, projectId, versionNo)
-      setPrdVersion(doc?.version || versionNo)
+      setDisplayVersion(doc?.version || versionNo)
       setPrdMarkdown(doc?.content || '')
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('version', String(versionNo))
+      setSearchParams(nextParams, { replace: true })
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load selected version')
     } finally {
@@ -116,7 +134,8 @@ export function GeneratedPrdViewPage() {
     setExportingType(type)
     try {
       const docKind = docType === 'SDD' ? 'sdd' : 'prd'
-      const { blob, filename } = await exportLlmPrd(orgId, projectId, type, prdVersion || undefined, docKind)
+      const versionNumber = displayVersion || (selectedVersion ? Number(selectedVersion) : undefined)
+      const { blob, filename } = await exportLlmPrd(orgId, projectId, type, versionNumber, docKind)
       const url = URL.createObjectURL(blob)
       const anchor = document.createElement('a')
       anchor.href = url
@@ -206,7 +225,7 @@ export function GeneratedPrdViewPage() {
             </Button>
             <Flex align="center" gap="3">
               <Select.Root
-                  value={prdVersion ? String(prdVersion) : undefined}
+                  value={selectedVersion || undefined}
                   onValueChange={handleVersionChange}
                   disabled={versions.length === 0}
                 >
@@ -219,7 +238,7 @@ export function GeneratedPrdViewPage() {
                     ))}
                   </Select.Content>
                 </Select.Root>
-              {prdVersion ? <Text size="2" color="gray">Version {prdVersion}</Text> : null}
+              {displayVersion ? <Text size="2" color="gray">Version {displayVersion}</Text> : null}
                 <DropdownMenu.Root>
                   <DropdownMenu.Trigger>
                     <Button size="1" variant="soft" disabled={loading || !prdMarkdown || exportingType !== ''}>

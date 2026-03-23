@@ -1,65 +1,91 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Box, Flex, Text, Button, TextArea } from '@radix-ui/themes'
+import { Box, Flex, Text, Button, TextArea, Select, Badge } from '@radix-ui/themes'
 import { ArrowLeftIcon, ArrowUpIcon } from '@radix-ui/react-icons'
 import ReactMarkdown from 'react-markdown'
 import mermaid from 'mermaid'
-import { ARCH_HIGH_LEVEL, ARCH_DATA_FLOW, ARCH_MODULES, ARCH_LAYERED, ARCH_DEPLOYMENT } from './mermaidDiagramContent'
+import {
+  generateArchitectureDiagram,
+  getArchitectureDiagram,
+  getArchitectureDiagramVersion,
+  getArchitectureDiagramVersions,
+  getLatestRequirementsStatus,
+} from '../../../services/requirementsApi'
 
 const SUGGESTIONS = [
   {
     label: 'High-level architecture',
     prompt: 'Show the high-level system architecture with Load Balancer and AWS components.',
-    applyChange: () => ARCH_HIGH_LEVEL,
-    summary: '**Changes applied:**\n• **High-level architecture** (System Design §2).\n• Client → LB → FastAPI (stateless) → RDS, S3, CloudWatch; TLS, JWT, tenant-scoped SQL.',
   },
   {
     label: 'Data flow (API & DB)',
     prompt: 'Show data flow from User through Frontend to API endpoints and Database.',
-    applyChange: () => ARCH_DATA_FLOW,
-    summary: '**Changes applied:**\n• **Data flow** with Auth/Dashboard/Reports/Tenant → /auth, /metrics, /reports, /tenants → PostgreSQL (tenant, users, metric, dashboard, session).',
   },
   {
     label: 'Module view (detailed)',
     prompt: 'Show the detailed module view: Frontend and Backend modules and DB tables.',
-    applyChange: () => ARCH_MODULES,
-    summary: '**Changes applied:**\n• **Module view** (System Design §3).\n• Frontend modules, Backend endpoints (bcrypt, JWT, tenant isolation), and PostgreSQL tables.',
   },
   {
     label: 'Layered architecture',
     prompt: 'Show the full layered architecture: Presentation, API, Application, Infrastructure.',
-    applyChange: () => ARCH_LAYERED,
-    summary: '**Changes applied:**\n• **Layered architecture**: Presentation (React, Router, Axios, Auth) → API (LB, FastAPI, JWT, Pydantic) → App & Data (modules + RDS) → S3, CloudWatch.',
   },
   {
     label: 'AWS deployment',
     prompt: 'Show the AWS deployment: CloudFront, S3, ALB, ECS, RDS, CloudWatch.',
-    applyChange: () => ARCH_DEPLOYMENT,
-    summary: '**Changes applied:**\n• **AWS deployment** (System Design §9): CloudFront + S3 static, ALB + ECS/EC2, RDS, S3 export, CloudWatch.',
   },
 ]
 
-let mermaidInitialized = false
-function ensureMermaid() {
-  if (mermaidInitialized) return
-  mermaid.initialize({ startOnLoad: false, theme: 'base' })
-  mermaidInitialized = true
+function getIsDarkMode() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function getMermaidConfig(isDarkMode) {
+  const lineColor = isDarkMode ? '#ffffff' : '#000000'
+  return {
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      lineColor,
+      textColor: lineColor,
+      primaryTextColor: lineColor,
+      secondaryTextColor: lineColor,
+      tertiaryTextColor: lineColor,
+      actorTextColor: lineColor,
+      signalColor: lineColor,
+      sequenceNumberColor: lineColor,
+      noteTextColor: lineColor,
+      activationTextColor: lineColor,
+      labelTextColor: lineColor,
+    },
+  }
 }
 
 export function ArchitectureDiagramPage() {
   const { orgId, projectId } = useParams()
+  const [intakeId, setIntakeId] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [editMessages, setEditMessages] = useState([])
-  const [diagramSource, setDiagramSource] = useState(ARCH_HIGH_LEVEL)
+  const [diagramSource, setDiagramSource] = useState('')
   const [svgContent, setSvgContent] = useState('')
   const [renderError, setRenderError] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
   const [isAgentProcessing, setIsAgentProcessing] = useState(false)
+  const [versions, setVersions] = useState([])
+  const [selectedVersion, setSelectedVersion] = useState('')
+  const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode)
   const containerRef = useRef(null)
-  const pendingMockEditRef = useRef(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e) => setIsDarkMode(Boolean(e.matches))
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
 
   const renderDiagram = useCallback(async (source) => {
-    ensureMermaid()
+    mermaid.initialize(getMermaidConfig(isDarkMode))
     setRenderError(null)
     const id = `mermaid-arch-${Date.now()}`
     try {
@@ -72,46 +98,127 @@ export function ArchitectureDiagramPage() {
       setRenderError(err.message || 'Failed to render diagram')
       setSvgContent('')
     }
-  }, [])
+  }, [isDarkMode])
 
   useEffect(() => {
+    if (!diagramSource.trim()) {
+      setSvgContent('')
+      setRenderError(null)
+      return
+    }
     renderDiagram(diagramSource)
   }, [diagramSource, renderDiagram])
 
+  useEffect(() => {
+    let mounted = true
+    const loadInitial = async () => {
+      if (!orgId || !projectId) return
+      setIsAgentProcessing(true)
+      try {
+        const latest = await getLatestRequirementsStatus(orgId, projectId)
+        const resolvedIntakeId = latest?.intake_id || ''
+        if (!mounted || !resolvedIntakeId) return
+        setIntakeId(resolvedIntakeId)
+        const existing = await getArchitectureDiagram(orgId, projectId, resolvedIntakeId)
+        const versionsResp = await getArchitectureDiagramVersions(orgId, projectId, resolvedIntakeId)
+        if (!mounted) return
+        const items = Array.isArray(versionsResp?.items) ? versionsResp.items : []
+        setVersions(items)
+        if (existing?.exists && String(existing?.mermaid || '').trim()) {
+          setDiagramSource(String(existing.mermaid))
+          const latestVersion = existing?.version ?? items?.[0]?.version_number
+          setSelectedVersion(latestVersion ? String(latestVersion) : '')
+        }
+      } catch (e) {
+        if (!mounted) return
+        setEditMessages((prev) => [
+          ...prev,
+          { role: 'assistant', text: e instanceof Error ? e.message : 'Failed to load architecture diagram.' },
+        ])
+      } finally {
+        if (mounted) setIsAgentProcessing(false)
+      }
+    }
+    loadInitial()
+    return () => {
+      mounted = false
+    }
+  }, [orgId, projectId])
+
   const handleSendEdit = useCallback(
-    (optionalMessage) => {
+    async (optionalMessage) => {
       const msg = (optionalMessage ?? chatInput).trim()
       if (!msg) return
       setEditMessages((prev) => [...prev, { role: 'user', text: msg }])
       setChatInput('')
-      const pending = pendingMockEditRef.current
-      pendingMockEditRef.current = null
-      if (pending) {
-        const newSource = typeof pending.applyChange === 'function' ? pending.applyChange() : pending.applyChange
-        setIsAgentProcessing(true)
-        setTimeout(() => {
-          setDiagramSource(newSource)
-          setEditMessages((prev) => [...prev, { role: 'assistant', text: pending.summary }])
-          setIsAgentProcessing(false)
-        }, 5000)
-      } else {
+      if (!orgId || !projectId || !intakeId) {
         setEditMessages((prev) => [
           ...prev,
           {
             role: 'assistant',
-            text: '**Edit received.** Ask to switch to another architecture view (e.g. data flow, modules) or try a suggestion below.',
+            text: 'Requirements intake not found. Complete requirements first.',
           },
         ])
+        return
+      }
+
+      setIsAgentProcessing(true)
+      try {
+        const result = await generateArchitectureDiagram(orgId, projectId, intakeId, { request: msg })
+        const mermaidText = String(result?.mermaid || '').trim()
+        if (mermaidText) {
+          setDiagramSource(mermaidText)
+        }
+        const versionsResp = await getArchitectureDiagramVersions(orgId, projectId, intakeId)
+        const items = Array.isArray(versionsResp?.items) ? versionsResp.items : []
+        setVersions(items)
+        const latestVersion = result?.version ?? items?.[0]?.version_number
+        setSelectedVersion(latestVersion ? String(latestVersion) : '')
+        setEditMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: String(result?.summary || '**Edit received.** Diagram updated.'),
+          },
+        ])
+      } catch (e) {
+        setEditMessages((prev) => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: e instanceof Error ? e.message : 'Failed to update architecture diagram.',
+          },
+        ])
+      } finally {
+        setIsAgentProcessing(false)
       }
     },
-    [chatInput]
+    [chatInput, orgId, projectId, intakeId]
   )
 
-  const startMockEdit = useCallback(
+  const handleVersionChange = useCallback(async (value) => {
+    if (!value || !orgId || !projectId || !intakeId) return
+    setSelectedVersion(value)
+    try {
+      const doc = await getArchitectureDiagramVersion(orgId, projectId, intakeId, Number(value))
+      const mermaidText = String(doc?.mermaid || '').trim()
+      if (mermaidText) setDiagramSource(mermaidText)
+      setEditMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: String(doc?.summary || `Loaded architecture version ${value}.`) },
+      ])
+    } catch (e) {
+      setEditMessages((prev) => [
+        ...prev,
+        { role: 'assistant', text: e instanceof Error ? e.message : 'Failed to load architecture version.' },
+      ])
+    }
+  }, [orgId, projectId, intakeId])
+
+  const startSuggestionEdit = useCallback(
     (suggestion) => {
       if (isTyping || isAgentProcessing) return
       const { prompt } = suggestion
-      pendingMockEditRef.current = suggestion
       setIsTyping(true)
       let i = 0
       const id = setInterval(() => {
@@ -149,7 +256,24 @@ export function ArchitectureDiagramPage() {
             </Link>
           </Button>
           <Text size="2" weight="medium">Architecture diagrams</Text>
+          <Box style={{ marginLeft: 'auto' }}>
+            <Flex align="center" gap="2">
+              {selectedVersion ? <Badge color="gray">V{selectedVersion}</Badge> : null}
+            </Flex>
+          </Box>
         </Flex>
+        <Box p="2" style={{ borderBottom: '1px solid var(--gray-6)' }}>
+          <Select.Root value={selectedVersion} onValueChange={handleVersionChange}>
+            <Select.Trigger placeholder="Version" style={{ minWidth: 120 }} />
+            <Select.Content>
+              {versions.map((v) => (
+                <Select.Item key={String(v.version_number)} value={String(v.version_number)}>
+                  {`Version ${v.version_number}`}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Root>
+        </Box>
         <Box style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
           {editMessages.length === 0 && !isTyping ? (
             <Flex direction="column" gap="3">
@@ -163,7 +287,7 @@ export function ArchitectureDiagramPage() {
                     size="1"
                     variant="soft"
                     disabled={isTyping || isAgentProcessing}
-                    onClick={() => startMockEdit(s)}
+                    onClick={() => startSuggestionEdit(s)}
                   >
                     {s.label}
                   </Button>
@@ -237,6 +361,10 @@ export function ArchitectureDiagramPage() {
           <Box p="4" style={{ background: 'var(--red-2)', border: '1px solid var(--red-6)', borderRadius: 8 }}>
             <Text size="2" color="red">{renderError}</Text>
           </Box>
+        ) : !svgContent ? (
+          <Flex align="center" justify="center" style={{ width: '100%', height: '100%', minHeight: 300, color: 'var(--gray-11)' }}>
+            <Text size="2">No architecture diagram yet.</Text>
+          </Flex>
         ) : (
           <Box
             ref={containerRef}

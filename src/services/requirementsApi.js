@@ -234,6 +234,139 @@ export function getUsecaseFlowVersion(orgId, projectId, intakeId, versionNumber)
   )
 }
 
+export function generateSequenceFlow(orgId, projectId, intakeId, payload) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/generate-sequence-flow?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+      body: JSON.stringify(payload),
+    }
+  )
+}
+
+export function startSequenceFlowRun(orgId, projectId, intakeId, payload) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/generate-sequence-flow/run?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+      body: JSON.stringify(payload || {}),
+    }
+  )
+}
+
+export function getSequenceFlowRunStatus(orgId, projectId, runId) {
+  return apiRequest(
+    `/api/requirements/sequence-flow/runs/${encodeURIComponent(runId)}?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function pauseSequenceFlowRun(orgId, projectId, runId) {
+  return apiRequest(
+    `/api/requirements/sequence-flow/runs/${encodeURIComponent(runId)}/pause?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function resumeSequenceFlowRun(orgId, projectId, runId) {
+  return apiRequest(
+    `/api/requirements/sequence-flow/runs/${encodeURIComponent(runId)}/resume?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function stopSequenceFlowRun(orgId, projectId, runId) {
+  return apiRequest(
+    `/api/requirements/sequence-flow/runs/${encodeURIComponent(runId)}/stop?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function getSequenceFlow(orgId, projectId, intakeId) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/sequence-flow?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function getSequenceFlowVersions(orgId, projectId, intakeId) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/sequence-flow/versions?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function getSequenceFlowVersion(orgId, projectId, intakeId, versionNumber) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/sequence-flow/versions/${encodeURIComponent(versionNumber)}?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function generateArchitectureDiagram(orgId, projectId, intakeId, payload) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/generate-architecture-diagram?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'POST',
+      headers: tenantHeaders(orgId),
+      body: JSON.stringify(payload || {}),
+    }
+  )
+}
+
+export function getArchitectureDiagram(orgId, projectId, intakeId) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/architecture-diagram?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function getArchitectureDiagramVersions(orgId, projectId, intakeId) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/architecture-diagram/versions?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
+export function getArchitectureDiagramVersion(orgId, projectId, intakeId, versionNumber) {
+  return apiRequest(
+    `/api/requirements/${encodeURIComponent(intakeId)}/architecture-diagram/versions/${encodeURIComponent(versionNumber)}?project_id=${encodeURIComponent(projectId)}`,
+    {
+      method: 'GET',
+      headers: tenantHeaders(orgId),
+    }
+  )
+}
+
 export function generateRequirementsPrd(orgId, projectId, intakeId) {
   return apiRequest(
     `/api/requirements/${encodeURIComponent(intakeId)}/generate-prd?project_id=${encodeURIComponent(projectId)}`,

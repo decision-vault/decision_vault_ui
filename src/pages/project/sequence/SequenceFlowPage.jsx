@@ -1,28 +1,20 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useParams, Link, useSearchParams, useNavigate } from 'react-router-dom'
 import { Box, Flex, Text, Button, TextArea, Select, Badge } from '@radix-ui/themes'
 import { ArrowLeftIcon, ArrowUpIcon } from '@radix-ui/react-icons'
 import ReactMarkdown from 'react-markdown'
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  useNodesState,
-  useEdgesState,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
-import SequenceParticipantNode from './SequenceParticipantNode'
+import mermaid from 'mermaid'
 import {
   getLatestRequirementsStatus,
-  getUsecaseFlow,
-  getUsecaseFlowVersion,
-  getUsecaseFlowVersions,
-  getUsecaseFlowRunStatus,
-  startUsecaseFlowRun,
+  getSequenceFlow,
+  getSequenceFlowVersion,
+  getSequenceFlowVersions,
+  getSequenceFlowRunStatus,
+  pauseSequenceFlowRun,
+  resumeSequenceFlowRun,
+  startSequenceFlowRun,
+  stopSequenceFlowRun,
 } from '../../../services/requirementsApi'
-import { PARTICIPANT_NODE_TYPE } from './sequenceFlowData'
-
-const nodeTypes = { [PARTICIPANT_NODE_TYPE]: SequenceParticipantNode }
 
 const QUICK_PROMPTS = [
   'Add auth sequence: login request, token validation, and response path.',
@@ -30,33 +22,80 @@ const QUICK_PROMPTS = [
   'Add Slack decision capture flow including webhook and storage.',
 ]
 
-function normalizeUsecaseFlowResponse(resp) {
-  const rawNodes = Array.isArray(resp?.nodes) ? resp.nodes : []
-  const rawEdges = Array.isArray(resp?.edges) ? resp.edges : []
+function getIsDarkMode() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
 
-  const nodes = rawNodes
+function getMermaidConfig(isDarkMode) {
+  const lineColor = isDarkMode ? '#ffffff' : '#000000'
+  return {
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      lineColor,
+      textColor: lineColor,
+      primaryTextColor: lineColor,
+      secondaryTextColor: lineColor,
+      tertiaryTextColor: lineColor,
+      actorTextColor: lineColor,
+      signalColor: lineColor,
+      sequenceNumberColor: lineColor,
+      noteTextColor: lineColor,
+      activationTextColor: lineColor,
+      labelTextColor: lineColor,
+    },
+  }
+}
+
+function buildMermaidFromGraph(nodes, edges) {
+  const participants = (Array.isArray(nodes) ? nodes : [])
     .map((node, idx) => {
-      const id = String(node?.id || `participant_${idx}`)
-      const name = String(node?.data?.name || node?.name || id)
-      const pos = node?.position || {}
-      const x = Number.isFinite(Number(pos?.x)) ? Number(pos.x) : 120 + (idx % 4) * 240
-      const y = Number.isFinite(Number(pos?.y)) ? Number(pos.y) : 80 + Math.floor(idx / 4) * 220
-      if (!name) return null
-      return {
-        id,
-        type: PARTICIPANT_NODE_TYPE,
-        position: { x, y },
-        data: { name },
-      }
+      const id = String(node?.id || `participant_${idx}`).trim()
+      const name = String(node?.data?.name || node?.name || id).trim()
+      if (!id || !name) return null
+      return { id, alias: id.replace(/[^a-zA-Z0-9_]/g, '_'), name }
     })
     .filter(Boolean)
 
-  const ids = new Set(nodes.map((n) => n.id))
+  const byId = new Map(participants.map((p) => [p.id, p]))
+  const lines = ['sequenceDiagram']
+  participants.forEach((p) => {
+    lines.push(`    participant ${p.alias} as ${p.name}`)
+  })
+
+  ;(Array.isArray(edges) ? edges : []).forEach((edge) => {
+    const source = String(edge?.source || '').trim()
+    const target = String(edge?.target || '').trim()
+    if (!source || !target || !byId.has(source) || !byId.has(target)) return
+    const label = String(edge?.label || edge?.data?.label || '').trim() || 'interaction'
+    lines.push(`    ${byId.get(source).alias}->>${byId.get(target).alias}: ${label}`)
+  })
+
+  return lines.join('\n')
+}
+
+function normalizeSequenceFlowResponse(resp) {
+  const rawNodes = Array.isArray(resp?.nodes) ? resp.nodes : []
+  const rawEdges = Array.isArray(resp?.edges) ? resp.edges : []
+  const mermaidText = String(resp?.mermaid || '').trim()
+  const sanitizedMermaid = /^sequenceDiagram\s*$/i.test(mermaidText) ? '' : mermaidText
+
+  const nodes = rawNodes
+    .map((node, idx) => {
+      const id = String(node?.id || `participant_${idx}`).trim()
+      const name = String(node?.data?.name || node?.name || id).trim()
+      if (!id || !name) return null
+      return { id, data: { name } }
+    })
+    .filter(Boolean)
+
+  const nodeIds = new Set(nodes.map((n) => n.id))
   const edges = rawEdges
     .map((edge, idx) => {
       const source = String(edge?.source || '').trim()
       const target = String(edge?.target || '').trim()
-      if (!source || !target || !ids.has(source) || !ids.has(target)) return null
+      if (!source || !target || !nodeIds.has(source) || !nodeIds.has(target)) return null
       const label = String(edge?.label || edge?.data?.label || '').trim()
       return {
         id: String(edge?.id || `e-${source}-${target}-${idx}`),
@@ -64,13 +103,6 @@ function normalizeUsecaseFlowResponse(resp) {
         target,
         label,
         data: { label },
-        type: 'smoothstep',
-        animated: false,
-        style: { stroke: '#8f96a3', strokeWidth: 1.4, strokeDasharray: '6 6' },
-        labelStyle: { fill: 'var(--gray-12)', fontWeight: 500 },
-        labelBgStyle: { fill: 'var(--color-panel)' },
-        labelBgPadding: [8, 4],
-        labelBgBorderRadius: 4,
       }
     })
     .filter(Boolean)
@@ -78,6 +110,7 @@ function normalizeUsecaseFlowResponse(resp) {
   return {
     nodes,
     edges,
+    mermaid: sanitizedMermaid || (nodes.length > 0 && edges.length > 0 ? buildMermaidFromGraph(nodes, edges) : ''),
     summary: String(resp?.summary || ''),
     exists: Boolean(resp?.exists),
   }
@@ -87,6 +120,7 @@ export function SequenceFlowPage() {
   const { orgId, projectId } = useParams()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const containerRef = useRef(null)
 
   const [intakeId, setIntakeId] = useState(searchParams.get('intake_id') || '')
   const [runId, setRunId] = useState(searchParams.get('run_id') || '')
@@ -97,25 +131,63 @@ export function SequenceFlowPage() {
 
   const [chatInput, setChatInput] = useState('')
   const [editMessages, setEditMessages] = useState([])
-  const [nodes, setNodes, onNodesChange] = useNodesState([])
-  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+  const [nodes, setNodes] = useState([])
+  const [edges, setEdges] = useState([])
+  const [diagramSource, setDiagramSource] = useState('')
+  const [svgContent, setSvgContent] = useState('')
+  const [renderError, setRenderError] = useState('')
   const [isAgentProcessing, setIsAgentProcessing] = useState(false)
   const [loadError, setLoadError] = useState('')
+  const [actionLoading, setActionLoading] = useState('')
+  const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode)
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e) => setIsDarkMode(Boolean(e.matches))
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
+  const renderDiagram = useCallback(async (source) => {
+    mermaid.initialize(getMermaidConfig(isDarkMode))
+    setRenderError('')
+    const id = `sequence-diagram-${Date.now()}`
+    try {
+      const { svg, bindFunctions } = await mermaid.render(id, source)
+      setSvgContent(svg)
+      if (containerRef.current && bindFunctions) {
+        requestAnimationFrame(() => bindFunctions(containerRef.current))
+      }
+    } catch (err) {
+      setRenderError(err?.message || 'Failed to render Mermaid diagram.')
+      setSvgContent('')
+    }
+  }, [isDarkMode])
+
+  useEffect(() => {
+    if (!diagramSource.trim()) {
+      setSvgContent('')
+      setRenderError('')
+      return
+    }
+    renderDiagram(diagramSource)
+  }, [diagramSource, renderDiagram])
 
   const updateUrl = useCallback((nextRunId, nextVersion) => {
     const params = new URLSearchParams(window.location.search)
     if (nextRunId) params.set('run_id', nextRunId)
     else params.delete('run_id')
     if (nextVersion) params.set('version', nextVersion)
+    else params.delete('version')
     navigate({ search: params.toString() }, { replace: true })
   }, [navigate])
 
   const applyResult = useCallback((resp) => {
-    const mapped = normalizeUsecaseFlowResponse(resp)
-    if (mapped.nodes.length > 0) {
-      setNodes(mapped.nodes)
-      setEdges(mapped.edges)
-    }
+    const mapped = normalizeSequenceFlowResponse(resp)
+    setNodes(mapped.nodes)
+    setEdges(mapped.edges)
+    setDiagramSource(mapped.mermaid)
     if (mapped.summary) {
       setEditMessages((prev) => [...prev, { role: 'assistant', text: mapped.summary }])
     }
@@ -124,12 +196,12 @@ export function SequenceFlowPage() {
       setSelectedVersion(v)
       updateUrl('', v)
     }
-  }, [setEdges, setNodes, updateUrl])
+  }, [updateUrl])
 
   const loadVersions = useCallback(async (resolvedIntakeId) => {
     if (!orgId || !projectId || !resolvedIntakeId) return
     try {
-      const resp = await getUsecaseFlowVersions(orgId, projectId, resolvedIntakeId)
+      const resp = await getSequenceFlowVersions(orgId, projectId, resolvedIntakeId)
       const items = Array.isArray(resp?.items) ? resp.items : []
       setVersions(items)
       if (!selectedVersion && items.length > 0) {
@@ -147,7 +219,7 @@ export function SequenceFlowPage() {
 
   const startRun = useCallback(async (resolvedIntakeId, request, currentNodes, currentEdges) => {
     if (!orgId || !projectId || !resolvedIntakeId) return
-    const started = await startUsecaseFlowRun(orgId, projectId, resolvedIntakeId, {
+    const started = await startSequenceFlowRun(orgId, projectId, resolvedIntakeId, {
       request,
       nodes: currentNodes || [],
       edges: currentEdges || [],
@@ -181,26 +253,26 @@ export function SequenceFlowPage() {
       setIsAgentProcessing(true)
       try {
         const saved = resolvedVersion
-          ? await getUsecaseFlowVersion(orgId, projectId, resolvedIntakeId, Number(resolvedVersion))
-          : await getUsecaseFlow(orgId, projectId, resolvedIntakeId)
+          ? await getSequenceFlowVersion(orgId, projectId, resolvedIntakeId, Number(resolvedVersion))
+          : await getSequenceFlow(orgId, projectId, resolvedIntakeId)
 
         if (!mounted) return
-        const mapped = normalizeUsecaseFlowResponse(saved)
-        if (mapped.nodes.length > 0 && mapped.exists) {
+        const mapped = normalizeSequenceFlowResponse(saved)
+        if ((mapped.nodes.length > 0 || mapped.mermaid) && mapped.exists) {
           applyResult(saved)
           await loadVersions(resolvedIntakeId)
           if (resolvedVersion) setSelectedVersion(String(resolvedVersion))
         } else if (!resolvedRunId) {
           await startRun(
             resolvedIntakeId,
-            'Generate initial use case interaction diagram from requirements and architecture inputs.',
+            'Generate initial sequence interaction diagram from requirements and architecture inputs.',
             [],
             []
           )
         }
       } catch (e) {
         if (!mounted) return
-        setLoadError(e instanceof Error ? e.message : 'Failed to load use case diagram.')
+        setLoadError(e instanceof Error ? e.message : 'Failed to load sequence diagram.')
       } finally {
         if (mounted) setIsAgentProcessing(false)
       }
@@ -219,7 +291,7 @@ export function SequenceFlowPage() {
       if (polling) return
       polling = true
       try {
-        const run = await getUsecaseFlowRunStatus(orgId, projectId, runId)
+        const run = await getSequenceFlowRunStatus(orgId, projectId, runId)
         if (stopped) return
         setRunStatus(run?.status || '')
         setRunSteps(Array.isArray(run?.steps) ? run.steps : [])
@@ -233,14 +305,14 @@ export function SequenceFlowPage() {
         }
         if (run?.status === 'failed') {
           setIsAgentProcessing(false)
-          setLoadError(run?.error || 'Use case generation failed.')
+          setLoadError(run?.error || 'Sequence generation failed.')
           setRunId('')
           updateUrl('', selectedVersion)
           return
         }
         if (run?.status === 'stopped') {
           setIsAgentProcessing(false)
-          setLoadError(run?.error || 'Use case generation stopped.')
+          setLoadError(run?.error || 'Sequence generation stopped.')
           setRunId('')
           updateUrl('', selectedVersion)
           return
@@ -249,7 +321,7 @@ export function SequenceFlowPage() {
       } catch (e) {
         if (stopped) return
         setIsAgentProcessing(false)
-        setLoadError(e instanceof Error ? e.message : 'Failed to poll use case run status.')
+        setLoadError(e instanceof Error ? e.message : 'Failed to poll sequence run status.')
         setRunId('')
         updateUrl('', selectedVersion)
       } finally {
@@ -268,37 +340,75 @@ export function SequenceFlowPage() {
     if (!value || !orgId || !projectId || !intakeId) return
     setSelectedVersion(value)
     try {
-      const doc = await getUsecaseFlowVersion(orgId, projectId, intakeId, Number(value))
-      const mapped = normalizeUsecaseFlowResponse(doc)
-      if (mapped.nodes.length > 0) {
-        setNodes(mapped.nodes)
-        setEdges(mapped.edges)
-      }
-      setEditMessages((prev) => [...prev, { role: 'assistant', text: mapped.summary || `Loaded use case version ${value}.` }])
+      const doc = await getSequenceFlowVersion(orgId, projectId, intakeId, Number(value))
+      const mapped = normalizeSequenceFlowResponse(doc)
+      setNodes(mapped.nodes)
+      setEdges(mapped.edges)
+      setDiagramSource(mapped.mermaid)
+      setEditMessages((prev) => [...prev, { role: 'assistant', text: mapped.summary || `Loaded sequence version ${value}.` }])
       updateUrl('', value)
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : 'Failed to load use case version.')
+      setLoadError(e instanceof Error ? e.message : 'Failed to load sequence version.')
     }
-  }, [orgId, projectId, intakeId, setNodes, setEdges, updateUrl])
+  }, [orgId, projectId, intakeId, updateUrl])
+
+  const handlePause = useCallback(async () => {
+    if (!orgId || !projectId || !runId) return
+    setActionLoading('pause')
+    try {
+      const r = await pauseSequenceFlowRun(orgId, projectId, runId)
+      setRunStatus(r?.status || 'paused')
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to pause sequence run.')
+    } finally {
+      setActionLoading('')
+    }
+  }, [orgId, projectId, runId])
+
+  const handleResume = useCallback(async () => {
+    if (!orgId || !projectId || !runId) return
+    setActionLoading('resume')
+    try {
+      const r = await resumeSequenceFlowRun(orgId, projectId, runId)
+      setRunStatus(r?.status || 'running')
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to resume sequence run.')
+    } finally {
+      setActionLoading('')
+    }
+  }, [orgId, projectId, runId])
+
+  const handleStop = useCallback(async () => {
+    if (!orgId || !projectId || !runId) return
+    setActionLoading('stop')
+    try {
+      const r = await stopSequenceFlowRun(orgId, projectId, runId)
+      setRunStatus(r?.status || 'stopped')
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to stop sequence run.')
+    } finally {
+      setActionLoading('')
+    }
+  }, [orgId, projectId, runId])
 
   const handleRegenerate = useCallback(async () => {
     if (!orgId || !projectId || !intakeId || isAgentProcessing || runId) return
     setLoadError('')
     setEditMessages((prev) => [
       ...prev,
-      { role: 'assistant', text: 'Regenerating use case diagram from latest requirements and current interactions…' },
+      { role: 'assistant', text: 'Regenerating sequence diagram from latest requirements and current interactions…' },
     ])
     setIsAgentProcessing(true)
     try {
       await startRun(
         intakeId,
-        'Regenerate and improve this use case interaction diagram. Keep participant ids stable and strengthen interaction labels.',
+        'Regenerate and improve this sequence interaction diagram. Keep participant ids stable and strengthen interaction labels.',
         nodes,
         edges
       )
     } catch (e) {
       setIsAgentProcessing(false)
-      setLoadError(e instanceof Error ? e.message : 'Failed to regenerate use case diagram.')
+      setLoadError(e instanceof Error ? e.message : 'Failed to regenerate sequence diagram.')
     }
   }, [orgId, projectId, intakeId, isAgentProcessing, runId, nodes, edges, startRun])
 
@@ -310,7 +420,7 @@ export function SequenceFlowPage() {
       return
     }
     if (runId) {
-      setLoadError('Use case generation is already running. Wait for completion.')
+      setLoadError('Sequence generation is already running. Wait for completion.')
       return
     }
     setLoadError('')
@@ -319,12 +429,12 @@ export function SequenceFlowPage() {
     setIsAgentProcessing(true)
     try {
       await startRun(intakeId, msg, nodes, edges)
-      setEditMessages((prev) => [...prev, { role: 'assistant', text: 'Use case run started. Applying update…' }])
+      setEditMessages((prev) => [...prev, { role: 'assistant', text: 'Sequence run started. Applying update…' }])
     } catch (e) {
       setIsAgentProcessing(false)
       setEditMessages((prev) => [
         ...prev,
-        { role: 'assistant', text: e instanceof Error ? e.message : 'Failed to update use case diagram.' },
+        { role: 'assistant', text: e instanceof Error ? e.message : 'Failed to update sequence diagram.' },
       ])
     }
   }, [chatInput, orgId, projectId, intakeId, runId, nodes, edges, startRun])
@@ -350,7 +460,7 @@ export function SequenceFlowPage() {
               <ArrowLeftIcon width="16" height="16" />
             </Link>
           </Button>
-          <Text size="2" weight="medium">Use Case Diagram</Text>
+          <Text size="2" weight="medium">Sequence Diagram</Text>
           <Box style={{ marginLeft: 'auto' }}>
             <Flex align="center" gap="2">
               {runStatus === 'running' || runStatus === 'queued' ? <Badge color="blue">Running</Badge> : null}
@@ -381,7 +491,7 @@ export function SequenceFlowPage() {
         <Box style={{ flex: 1, minHeight: 0, overflow: 'auto', padding: 12 }}>
           {editMessages.length === 0 ? (
             <Flex direction="column" gap="3">
-              <Text size="2" color="gray">Use prompts to update interactions and participants.</Text>
+              <Text size="2" color="gray">Use prompts to update sequence interactions and participants.</Text>
               <Flex wrap="wrap" gap="2">
                 {QUICK_PROMPTS.map((prompt) => (
                   <Button
@@ -423,7 +533,34 @@ export function SequenceFlowPage() {
 
           {(isAgentProcessing || runId) ? (
             <Box mt="3" p="2" style={{ background: 'var(--gray-3)', borderRadius: 'var(--radius-2)' }}>
-              <Text size="2" color="gray">{runId ? 'Processing…' : 'Preparing…'}</Text>
+              <Flex align="center" justify="between" gap="2">
+                <Text size="2" color="gray">{runId ? 'Processing sequence run…' : 'Preparing…'}</Text>
+                <Flex gap="2">
+                  {runStatus === 'paused' ? (
+                    <Button size="1" variant="soft" onClick={handleResume} disabled={actionLoading !== ''}>
+                      {actionLoading === 'resume' ? 'Resuming…' : 'Resume'}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="1"
+                      variant="soft"
+                      onClick={handlePause}
+                      disabled={actionLoading !== '' || !(runStatus === 'running' || runStatus === 'queued')}
+                    >
+                      {actionLoading === 'pause' ? 'Pausing…' : 'Pause'}
+                    </Button>
+                  )}
+                  <Button
+                    size="1"
+                    variant="soft"
+                    color="red"
+                    onClick={handleStop}
+                    disabled={actionLoading !== '' || !(runStatus === 'running' || runStatus === 'queued' || runStatus === 'paused')}
+                  >
+                    {actionLoading === 'stop' ? 'Stopping…' : 'Stop'}
+                  </Button>
+                </Flex>
+              </Flex>
             </Box>
           ) : null}
 
@@ -433,7 +570,7 @@ export function SequenceFlowPage() {
               <Flex direction="column" gap="2" mt="2">
                 {runSteps.map((s, idx) => (
                   <Flex key={`${s.stage || 'stage'}-${idx}`} justify="between" align="center">
-                    <Text size="1">{String(s.stage || 'usecase_generation')}</Text>
+                    <Text size="1">{String(s.stage || 'sequence_generation')}</Text>
                     <Badge
                       size="1"
                       color={
@@ -463,7 +600,7 @@ export function SequenceFlowPage() {
 
         <Flex p="3" gap="2" style={{ borderTop: '1px solid var(--gray-6)' }}>
           <TextArea
-            placeholder="Describe a use-case change..."
+            placeholder="Describe a sequence change..."
             size="2"
             value={chatInput}
             onChange={(e) => setChatInput(e.target.value)}
@@ -486,28 +623,27 @@ export function SequenceFlowPage() {
         </Flex>
       </Box>
 
-      <Box style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', background: 'var(--gray-2)' }}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          nodeTypes={nodeTypes}
-          fitView
-          style={{ width: '100%', height: '100%', background: 'var(--gray-2)' }}
-          defaultEdgeOptions={{
-            type: 'smoothstep',
-            animated: false,
-            style: { stroke: '#8f96a3', strokeWidth: 1.4, strokeDasharray: '6 6' },
-            labelStyle: { fill: 'var(--gray-12)', fontWeight: 500 },
-            labelBgStyle: { fill: 'var(--color-panel)' },
-            labelBgPadding: [8, 4],
-            labelBgBorderRadius: 4,
-          }}
-        >
-          <Background gap={16} size={1} color="var(--gray-5)" />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+      <Box style={{ flex: 1, minWidth: 0, minHeight: 0, height: '100%', overflow: 'auto', background: 'var(--gray-2)', padding: 24 }}>
+        {isAgentProcessing && !svgContent ? (
+          <Flex align="center" justify="center" style={{ width: '100%', height: '100%', minHeight: 300 }}>
+            <Text size="2" color="gray">Loading diagram…</Text>
+          </Flex>
+        ) : renderError ? (
+          <Box p="4" style={{ background: 'var(--red-2)', border: '1px solid var(--red-6)', borderRadius: 8 }}>
+            <Text size="2" color="red">{renderError}</Text>
+          </Box>
+        ) : !svgContent ? (
+          <Flex align="center" justify="center" style={{ width: '100%', height: '100%', minHeight: 300 }}>
+            <Text size="2" color="gray">No sequence diagram yet. Click Generate to create one.</Text>
+          </Flex>
+        ) : (
+          <Box
+            ref={containerRef}
+            className="mermaid-diagram-container"
+            style={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', minHeight: 300 }}
+            dangerouslySetInnerHTML={{ __html: svgContent }}
+          />
+        )}
       </Box>
     </Flex>
   )

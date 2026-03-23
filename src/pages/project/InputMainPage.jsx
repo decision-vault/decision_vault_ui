@@ -27,6 +27,12 @@ import {
   getSchemaFlowVersion,
   getSchemaFlowVersions,
   getSchemaFlowRunStatus,
+  getSequenceFlow,
+  getSequenceFlowVersion,
+  getSequenceFlowVersions,
+  getSequenceFlowRunStatus,
+  generateArchitectureDiagram,
+  getArchitectureDiagram,
   getUsecaseFlow,
   getUsecaseFlowVersion,
   getUsecaseFlowVersions,
@@ -37,6 +43,7 @@ import {
   respondRequirements,
   respondLlmPrdClarification,
   startSchemaFlowRun,
+  startSequenceFlowRun,
   startUsecaseFlowRun,
   startRequirementsSystemDesignRun,
   startLlmPrdRun,
@@ -162,6 +169,18 @@ export function InputMainPage() {
   const [usecaseExists, setUsecaseExists] = useState(false)
   const [usecaseVersions, setUsecaseVersions] = useState([])
   const [selectedUsecaseVersion, setSelectedUsecaseVersion] = useState('')
+  const [isGeneratingSequence, setIsGeneratingSequence] = useState(false)
+  const [sequenceRunId, setSequenceRunId] = useState('')
+  const [sequenceRunStatus, setSequenceRunStatus] = useState('')
+  const [sequenceRunSteps, setSequenceRunSteps] = useState([])
+  const [sequenceSummary, setSequenceSummary] = useState('')
+  const [sequenceMessage, setSequenceMessage] = useState('')
+  const [sequenceExists, setSequenceExists] = useState(false)
+  const [sequenceVersions, setSequenceVersions] = useState([])
+  const [selectedSequenceVersion, setSelectedSequenceVersion] = useState('')
+  const [isGeneratingArchitecture, setIsGeneratingArchitecture] = useState(false)
+  const [architectureMessage, setArchitectureMessage] = useState('')
+  const [architectureExists, setArchitectureExists] = useState(false)
 
   const textAreaRef = useRef(null)
 
@@ -427,6 +446,60 @@ export function InputMainPage() {
   }, [isGeneratingUsecase, usecaseRunId, orgId, projectId, intakeId])
 
   useEffect(() => {
+    if (!isGeneratingSequence || !sequenceRunId || !orgId || !projectId || !intakeId) return undefined
+    let stopped = false
+    const poll = async () => {
+      try {
+        const run = await getSequenceFlowRunStatus(orgId, projectId, sequenceRunId)
+        if (stopped) return
+        const status = run?.status || ''
+        setSequenceRunStatus(status)
+        setSequenceRunSteps(Array.isArray(run?.steps) ? run.steps : [])
+        if (status === 'completed') {
+          setIsGeneratingSequence(false)
+          setSequenceMessage('Sequence diagram generated.')
+          setSequenceExists(true)
+          try {
+            const latest = await getSequenceFlow(orgId, projectId, intakeId)
+            if (!stopped) {
+              setSequenceExists(Boolean(latest?.exists))
+              setSequenceSummary(String(latest?.summary || ''))
+              setSequenceRunStatus('completed')
+              const versionsResp = await getSequenceFlowVersions(orgId, projectId, intakeId)
+              const items = Array.isArray(versionsResp?.items) ? versionsResp.items : []
+              setSequenceVersions(items)
+              const latestVer = latest?.version ?? items?.[0]?.version_number
+              setSelectedSequenceVersion(latestVer ? String(latestVer) : '')
+            }
+          } catch {
+            // ignore summary load failure
+          }
+          return
+        }
+        if (status === 'failed') {
+          setIsGeneratingSequence(false)
+          setSequenceMessage(run?.error || 'Sequence generation failed')
+          return
+        }
+        if (status === 'stopped') {
+          setIsGeneratingSequence(false)
+          setSequenceMessage(run?.error || 'Sequence generation stopped')
+          return
+        }
+      } catch (error) {
+        if (stopped) return
+        setIsGeneratingSequence(false)
+        setSequenceMessage(error instanceof Error ? error.message : 'Failed to poll sequence run status')
+      }
+      window.setTimeout(poll, 2000)
+    }
+    poll()
+    return () => {
+      stopped = true
+    }
+  }, [isGeneratingSequence, sequenceRunId, orgId, projectId, intakeId])
+
+  useEffect(() => {
     let mounted = true
     const applyStatusToUI = (data, currentIntakeId) => {
       setIntakeId(currentIntakeId)
@@ -460,6 +533,8 @@ export function InputMainPage() {
       const activeRun = getActivePrdRun()
       try {
         const loadPersistedDocs = async (activeIntakeId) => {
+          setArchitectureExists(false)
+          setArchitectureMessage('')
           try {
             const latestLlmPrd = await getLatestLlmPrd(orgId, projectId)
             if (mounted && latestLlmPrd?.content) {
@@ -529,6 +604,31 @@ export function InputMainPage() {
           } catch {
             // ignore missing use case diagram
           }
+          try {
+            const sequence = await getSequenceFlow(orgId, projectId, activeIntakeId)
+            if (mounted && sequence?.exists) {
+              setSequenceExists(true)
+              setSequenceSummary(String(sequence?.summary || ''))
+              setSequenceRunStatus('completed')
+              setSequenceMessage('Sequence diagram generated.')
+              const versionsResp = await getSequenceFlowVersions(orgId, projectId, activeIntakeId)
+              const items = Array.isArray(versionsResp?.items) ? versionsResp.items : []
+              setSequenceVersions(items)
+              const latestVer = sequence?.version ?? items?.[0]?.version_number
+              setSelectedSequenceVersion(latestVer ? String(latestVer) : '')
+            }
+          } catch {
+            // ignore missing sequence diagram
+          }
+          try {
+            const architecture = await getArchitectureDiagram(orgId, projectId, activeIntakeId)
+            if (mounted && architecture?.exists) {
+              setArchitectureExists(true)
+              setArchitectureMessage('Architecture diagram generated.')
+            }
+          } catch {
+            // ignore missing architecture diagram
+          }
         }
 
         if (intakeIdParam) {
@@ -547,6 +647,9 @@ export function InputMainPage() {
           await loadPersistedDocs(latest.intake_id)
         }
         if (runIdParam) {
+          setPrdContent('')
+          setPrdSource('')
+          setPrdVersion(null)
           setPrdRunId(runIdParam)
           setIsGeneratingPrd(true)
           setActivePrdRun({
@@ -565,6 +668,9 @@ export function InputMainPage() {
           activeRun?.projectId === projectId &&
           (activeRun?.status === 'queued' || activeRun?.status === 'running' || activeRun?.status === 'paused')
         ) {
+          setPrdContent('')
+          setPrdSource('')
+          setPrdVersion(null)
           setPrdRunId(activeRun.runId)
           setPrdRunStatus(activeRun.status)
           setIsGeneratingPrd(true)
@@ -700,6 +806,9 @@ export function InputMainPage() {
     setSchemaExists(false)
     setSchemaVersions([])
     setSelectedSchemaVersion('')
+    setArchitectureExists(false)
+    setIsGeneratingArchitecture(false)
+    setArchitectureMessage('')
     clearActiveSddRun()
     clearActiveSchemaRun()
     clearActivePrdRun()
@@ -713,6 +822,8 @@ export function InputMainPage() {
     setIsGeneratingPrd(true)
     setIsLoadingFinalPrd(false)
     setPrdClarifications([])
+    setPrdContent('')
+    setPrdVersion(null)
     setPrdSource('')
     setPrdRunId('')
     setPrdRunStatus('')
@@ -807,6 +918,8 @@ export function InputMainPage() {
         setPrdRunId(result.run_id)
         setPrdRunStatus(result.status || 'queued')
         setIsGeneratingPrd(true)
+        setPrdContent('')
+        setPrdVersion(null)
         setActivePrdRun({
           runId: result.run_id,
           orgId,
@@ -982,6 +1095,65 @@ export function InputMainPage() {
       setUsecaseRunStatus('completed')
     } catch (error) {
       setUsecaseMessage(error instanceof Error ? error.message : 'Failed to load use case version')
+    }
+  }
+
+  const handleGenerateSequenceDiagram = async () => {
+    if (!orgId || !projectId || !intakeId || isGeneratingSequence) return
+    setIsGeneratingSequence(true)
+    setSequenceMessage('')
+    setSequenceRunSteps([])
+    setSequenceSummary('')
+    setSequenceExists(false)
+    setSequenceVersions([])
+    setSelectedSequenceVersion('')
+    setIsGeneratingArchitecture(false)
+    setArchitectureMessage('')
+    try {
+      const run = await startSequenceFlowRun(orgId, projectId, intakeId, {
+        request: 'Generate initial sequence interaction diagram from requirements and architecture inputs.',
+        nodes: [],
+        edges: [],
+      })
+      if (!run?.run_id) throw new Error('Failed to start sequence run')
+      setSequenceRunId(run.run_id)
+      setSequenceRunStatus(run.status || 'queued')
+      setSequenceMessage(`Sequence run started: ${run.run_id}`)
+    } catch (error) {
+      setSequenceMessage(error instanceof Error ? error.message : 'Failed to start sequence generation')
+      setIsGeneratingSequence(false)
+    }
+  }
+
+  const handleSequenceVersionChange = async (value) => {
+    if (!value || !orgId || !projectId || !intakeId) return
+    setSelectedSequenceVersion(value)
+    try {
+      const versionDoc = await getSequenceFlowVersion(orgId, projectId, intakeId, Number(value))
+      setSequenceExists(Boolean(versionDoc?.exists ?? true))
+      setSequenceSummary(String(versionDoc?.summary || ''))
+      setSequenceMessage(`Sequence version ${value} loaded.`)
+      setSequenceRunStatus('completed')
+    } catch (error) {
+      setSequenceMessage(error instanceof Error ? error.message : 'Failed to load sequence version')
+    }
+  }
+
+  const handleGenerateArchitectureDiagram = async () => {
+    if (!orgId || !projectId || !intakeId || isGeneratingArchitecture) return
+    setIsGeneratingArchitecture(true)
+    setArchitectureMessage('')
+    setArchitectureExists(false)
+    try {
+      await generateArchitectureDiagram(orgId, projectId, intakeId, {
+        request: 'Show the high-level system architecture with Load Balancer and AWS components.',
+      })
+      setArchitectureExists(true)
+      setArchitectureMessage('Architecture diagram generated.')
+    } catch (error) {
+      setArchitectureMessage(error instanceof Error ? error.message : 'Failed to generate architecture diagram')
+    } finally {
+      setIsGeneratingArchitecture(false)
     }
   }
 
@@ -1251,7 +1423,7 @@ export function InputMainPage() {
                         {isLoadingFinalPrd ? <Badge color="amber">Finalizing</Badge> : null}
                         {!isGeneratingPrd && !isLoadingFinalPrd && prdContent ? <Badge color="green">Completed</Badge> : null}
                         {prdSource ? <Badge color="green">{prdSource}</Badge> : null}
-                        {prdContent ? (
+                        {!isGeneratingPrd && !isLoadingFinalPrd && prdContent ? (
                           <Button
                             size="1"
                             variant="soft"
@@ -1626,6 +1798,196 @@ export function InputMainPage() {
                             </Box>
                           ))}
                         </Flex>
+                      </Box>
+                    ) : null}
+                  </Box>
+                ) : null}
+                {usecaseExists && !sequenceExists && !isGeneratingSequence ? (
+                  <Flex justify="start" style={{ width: '100%' }}>
+                    <Button
+                      size="2"
+                      variant="solid"
+                      color="indigo"
+                      onClick={handleGenerateSequenceDiagram}
+                      disabled={isGeneratingSequence}
+                    >
+                      Generate Sequence Diagram
+                    </Button>
+                  </Flex>
+                ) : null}
+                {(isGeneratingSequence || sequenceExists || sequenceSummary || sequenceMessage || sequenceRunStatus) ? (
+                  <Box
+                    p="3"
+                    style={{
+                      width: '100%',
+                      border: '1px solid var(--gray-6)',
+                      borderRadius: 'var(--radius-2)',
+                      background: 'var(--color-panel-solid)',
+                    }}
+                  >
+                    <Flex align="center" justify="between" gap="3" wrap="wrap">
+                      <Flex align="center" gap="2">
+                        {isGeneratingSequence ? <Spinner size="2" /> : null}
+                        <Text size="2" weight="medium">Sequence Diagram</Text>
+                      </Flex>
+                      <Flex align="center" gap="2">
+                        {isGeneratingSequence ? <Badge color="blue">Running</Badge> : null}
+                        {!isGeneratingSequence && sequenceRunStatus === 'completed' ? <Badge color="green">Completed</Badge> : null}
+                        {!isGeneratingSequence && sequenceRunStatus === 'failed' ? <Badge color="red">Failed</Badge> : null}
+                        {sequenceRunId ? <Badge color="gray">Run {sequenceRunId.slice(-6)}</Badge> : null}
+                        {selectedSequenceVersion ? <Badge color="gray">{`Version ${selectedSequenceVersion}`}</Badge> : null}
+                        {sequenceExists ? (
+                          <Select.Root value={selectedSequenceVersion} onValueChange={handleSequenceVersionChange}>
+                            <Select.Trigger size="1" style={{ minWidth: 116 }} placeholder="Version" />
+                            <Select.Content>
+                              {sequenceVersions.map((v) => (
+                                <Select.Item key={String(v.version_number)} value={String(v.version_number)}>
+                                  {`Version ${v.version_number}`}
+                                </Select.Item>
+                              ))}
+                            </Select.Content>
+                          </Select.Root>
+                        ) : null}
+                        {sequenceExists ? (
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="indigo"
+                            onClick={handleGenerateSequenceDiagram}
+                            disabled={isGeneratingSequence}
+                          >
+                            {isGeneratingSequence ? 'Regenerating…' : 'Regenerate'}
+                          </Button>
+                        ) : null}
+                        {sequenceExists ? (
+                          <Button
+                            size="1"
+                            variant="soft"
+                            onClick={() => {
+                              const versionQuery = selectedSequenceVersion ? `&version=${encodeURIComponent(selectedSequenceVersion)}` : ''
+                              const intakeQuery = intakeId ? `?intake_id=${encodeURIComponent(intakeId)}${versionQuery}` : ''
+                              navigate(`/organizations/${orgId}/projects/${projectId}/mvp/doc/3${intakeQuery}`)
+                            }}
+                          >
+                            Open Sequence View
+                          </Button>
+                        ) : null}
+                      </Flex>
+                    </Flex>
+                    {isGeneratingSequence ? (
+                      <Box mt="3">
+                        <Skeleton style={{ height: 14, width: '48%', marginBottom: 10 }} />
+                        <Skeleton style={{ height: 12, width: '84%', marginBottom: 8 }} />
+                        <Skeleton style={{ height: 12, width: '80%', marginBottom: 8 }} />
+                        <Skeleton style={{ height: 12, width: '76%' }} />
+                      </Box>
+                    ) : null}
+                    {sequenceMessage ? (
+                      <Box mt="2">
+                        <Text size="1" color={sequenceRunStatus === 'failed' ? 'red' : 'gray'}>{sequenceMessage}</Text>
+                      </Box>
+                    ) : null}
+                    {isGeneratingSequence && sequenceRunSteps.length > 0 ? (
+                      <Box mt="3">
+                        <Text size="1" color="gray" style={{ display: 'block', marginBottom: 6 }}>
+                          Step Completion
+                        </Text>
+                        <Flex direction="column" gap="2">
+                          {sequenceRunSteps.map((s, idx) => (
+                            <Box key={`${s.stage || 'stage'}-${idx}`}>
+                              <Flex justify="between" align="center">
+                                <Text size="1">{String(s.stage || 'sequence_generation')}</Text>
+                                <Badge
+                                  size="1"
+                                  color={
+                                    s.status === 'completed'
+                                      ? 'green'
+                                      : s.status === 'running'
+                                        ? 'blue'
+                                        : s.status === 'failed'
+                                          ? 'red'
+                                          : s.status === 'stopped'
+                                            ? 'amber'
+                                            : 'gray'
+                                  }
+                                >
+                                  {s.status || 'queued'}
+                                </Badge>
+                              </Flex>
+                            </Box>
+                          ))}
+                        </Flex>
+                      </Box>
+                    ) : null}
+                  </Box>
+                ) : null}
+                {sequenceExists && !architectureExists && !isGeneratingArchitecture ? (
+                  <Flex justify="start" style={{ width: '100%' }}>
+                    <Button
+                      size="2"
+                      variant="solid"
+                      color="indigo"
+                      onClick={handleGenerateArchitectureDiagram}
+                      disabled={isGeneratingArchitecture}
+                    >
+                      Generate Architecture Diagram
+                    </Button>
+                  </Flex>
+                ) : null}
+                {(isGeneratingArchitecture || architectureExists || architectureMessage) ? (
+                  <Box
+                    p="3"
+                    style={{
+                      width: '100%',
+                      border: '1px solid var(--gray-6)',
+                      borderRadius: 'var(--radius-2)',
+                      background: 'var(--color-panel-solid)',
+                    }}
+                  >
+                    <Flex align="center" justify="between" gap="3" wrap="wrap">
+                      <Flex align="center" gap="2">
+                        {isGeneratingArchitecture ? <Spinner size="2" /> : null}
+                        <Text size="2" weight="medium">Architecture Diagram</Text>
+                      </Flex>
+                      <Flex align="center" gap="2">
+                        {isGeneratingArchitecture ? <Badge color="blue">Running</Badge> : null}
+                        {!isGeneratingArchitecture && architectureExists ? <Badge color="green">Completed</Badge> : null}
+                        {architectureExists ? (
+                          <Button
+                            size="1"
+                            variant="soft"
+                            color="indigo"
+                            onClick={handleGenerateArchitectureDiagram}
+                            disabled={isGeneratingArchitecture}
+                          >
+                            {isGeneratingArchitecture ? 'Regenerating…' : 'Regenerate'}
+                          </Button>
+                        ) : null}
+                        {architectureExists ? (
+                          <Button
+                            size="1"
+                            variant="soft"
+                            onClick={() => {
+                              const intakeQuery = intakeId ? `?intake_id=${encodeURIComponent(intakeId)}` : ''
+                              navigate(`/organizations/${orgId}/projects/${projectId}/mvp/doc/4${intakeQuery}`)
+                            }}
+                          >
+                            Open Architecture View
+                          </Button>
+                        ) : null}
+                      </Flex>
+                    </Flex>
+                    {isGeneratingArchitecture ? (
+                      <Box mt="3">
+                        <Skeleton style={{ height: 14, width: '48%', marginBottom: 10 }} />
+                        <Skeleton style={{ height: 12, width: '84%', marginBottom: 8 }} />
+                        <Skeleton style={{ height: 12, width: '80%', marginBottom: 8 }} />
+                        <Skeleton style={{ height: 12, width: '76%' }} />
+                      </Box>
+                    ) : null}
+                    {architectureMessage ? (
+                      <Box mt="2">
+                        <Text size="1" color="gray">{architectureMessage}</Text>
                       </Box>
                     ) : null}
                   </Box>

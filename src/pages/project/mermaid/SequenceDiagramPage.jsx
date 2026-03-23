@@ -27,11 +27,30 @@ const SUGGESTIONS = [
   },
 ]
 
-let mermaidInitialized = false
-function ensureMermaid() {
-  if (mermaidInitialized) return
-  mermaid.initialize({ startOnLoad: false, theme: 'base' })
-  mermaidInitialized = true
+function getIsDarkMode() {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false
+  return window.matchMedia('(prefers-color-scheme: dark)').matches
+}
+
+function getMermaidConfig(isDarkMode) {
+  const lineColor = isDarkMode ? '#ffffff' : '#000000'
+  return {
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+      lineColor,
+      textColor: lineColor,
+      primaryTextColor: lineColor,
+      secondaryTextColor: lineColor,
+      tertiaryTextColor: lineColor,
+      actorTextColor: lineColor,
+      signalColor: lineColor,
+      sequenceNumberColor: lineColor,
+      noteTextColor: lineColor,
+      activationTextColor: lineColor,
+      labelTextColor: lineColor,
+    },
+  }
 }
 
 export function SequenceDiagramPage() {
@@ -43,11 +62,20 @@ export function SequenceDiagramPage() {
   const [renderError, setRenderError] = useState(null)
   const [isTyping, setIsTyping] = useState(false)
   const [isAgentProcessing, setIsAgentProcessing] = useState(false)
+  const [isDarkMode, setIsDarkMode] = useState(getIsDarkMode)
   const containerRef = useRef(null)
   const pendingMockEditRef = useRef(null)
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined
+    const media = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e) => setIsDarkMode(Boolean(e.matches))
+    media.addEventListener('change', onChange)
+    return () => media.removeEventListener('change', onChange)
+  }, [])
+
   const renderDiagram = useCallback(async (source) => {
-    ensureMermaid()
+    mermaid.initialize(getMermaidConfig(isDarkMode))
     setRenderError(null)
     const id = `mermaid-seq-${Date.now()}`
     try {
@@ -60,7 +88,7 @@ export function SequenceDiagramPage() {
       setRenderError(err.message || 'Failed to render diagram')
       setSvgContent('')
     }
-  }, [])
+  }, [isDarkMode])
 
   useEffect(() => {
     renderDiagram(diagramSource)
