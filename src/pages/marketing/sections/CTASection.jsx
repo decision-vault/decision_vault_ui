@@ -1,6 +1,7 @@
 import { Container } from '../components/Container'
 import { Reveal } from '../components/Reveal'
 import { Button } from '../components/Button'
+import { Link } from 'react-router-dom'
 
 export function CTASection() {
   return (
@@ -17,11 +18,11 @@ export function CTASection() {
                 Start with Stage 1: decision capture, versioning, timeline, and evidence-first search.
               </p>
               <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <Button className="w-full sm:w-auto" onClick={() => window.location.assign('/signup')}>
-                  Start Free Trial
+                <Button asChild className="w-full sm:w-auto">
+                  <Link to="/signup">Start Free Trial</Link>
                 </Button>
-                <Button variant="secondary" className="w-full sm:w-auto" onClick={() => window.location.assign('/book-demo')}>
-                  Book Demo
+                <Button asChild variant="secondary" className="w-full sm:w-auto">
+                  <Link to="/book-demo">Book Demo</Link>
                 </Button>
               </div>
             </div>

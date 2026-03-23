@@ -1,6 +1,7 @@
 import { Container } from '../components/Container'
 import { Reveal } from '../components/Reveal'
 import { Button } from '../components/Button'
+import { Link } from 'react-router-dom'
 
 const plans = [
   {
@@ -75,12 +76,10 @@ export function PricingPreview() {
                   ))}
                 </ul>
                 <div className="mt-6">
-                  <Button
-                    variant={p.emphasis ? 'primary' : 'secondary'}
-                    className="w-full"
-                    onClick={() => window.location.assign(p.name === 'Enterprise' ? '/book-demo' : '/signup')}
-                  >
-                    {p.name === 'Enterprise' ? 'Contact sales' : 'Start trial'}
+                  <Button asChild variant={p.emphasis ? 'primary' : 'secondary'} className="w-full">
+                    <Link to={p.name === 'Enterprise' ? '/book-demo' : '/signup'}>
+                      {p.name === 'Enterprise' ? 'Contact sales' : 'Start trial'}
+                    </Link>
                   </Button>
                 </div>
               </div>

@@ -35,11 +35,11 @@ export function Navbar() {
                 Sign in
               </Link>
             </motion.div>
-            <Button variant="secondary" className="hidden md:inline-flex" onClick={() => window.location.assign('/book-demo')}>
-              Book Demo
+            <Button asChild variant="secondary" className="hidden md:inline-flex">
+              <Link to="/book-demo">Book Demo</Link>
             </Button>
-            <Button className="inline-flex" onClick={() => window.location.assign('/signup')}>
-              Start Free Trial
+            <Button asChild className="inline-flex">
+              <Link to="/signup">Start Free Trial</Link>
             </Button>
           </div>
         </div>
