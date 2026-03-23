@@ -17,6 +17,11 @@ function getServerSnapshot() {
 
 export function SystemTheme({ children }) {
   const isDark = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  try {
+    document.documentElement.classList.toggle('dark', Boolean(isDark))
+  } catch {
+    // ignore
+  }
   return (
     <Theme
       appearance={isDark ? 'dark' : 'light'}

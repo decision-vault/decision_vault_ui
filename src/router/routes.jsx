@@ -9,6 +9,8 @@ import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
 import { DocsPage } from '../pages/auth/DocsPage'
 import { TermsPage } from '../pages/auth/TermsPage'
 import { PrivacyPage } from '../pages/auth/PrivacyPage'
+import { LandingPage } from '../pages/marketing/LandingPage'
+import { BookDemoPage } from '../pages/marketing/BookDemoPage'
 import { OrgListPage } from '../pages/org/OrgListPage'
 import { OrgCreatePage } from '../pages/org/OrgCreatePage'
 import { OrgPlansPage } from '../pages/org/OrgPlansPage'
@@ -42,7 +44,8 @@ export const router = createBrowserRouter([
       </GuestRoute>
     ),
     children: [
-      { index: true, element: <Navigate to="/login" replace /> },
+      { index: true, element: <LandingPage /> },
+      { path: 'book-demo', element: <BookDemoPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <SignupPage /> },
       { path: 'forgot-password', element: <ForgotPasswordPage /> },
