@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge, Box, Button, Flex, Text } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons'
 import {
@@ -36,6 +37,7 @@ function formatDuration(seconds) {
 }
 
 export function GlobalSchemaRunTracker() {
+  const STATUS_POLL_INTERVAL_MS = 10_000
   const [activeRun, setActiveRun] = useState(() => getActiveSchemaRun())
   const [collapsed, setCollapsed] = useState(() => getSchemaTrackerCollapsed())
   const [error, setError] = useState('')
@@ -96,7 +98,7 @@ export function GlobalSchemaRunTracker() {
       }
 
       setActiveSchemaRun({ ...activeRun, status: 'running', message: '' })
-      timer = window.setTimeout(poll, 2000)
+      timer = window.setTimeout(poll, STATUS_POLL_INTERVAL_MS)
     }
 
     poll()
@@ -114,7 +116,9 @@ export function GlobalSchemaRunTracker() {
 
   if (!activeRun?.startedAt) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal((
     <Box
       style={{
         position: 'fixed',
@@ -228,5 +232,5 @@ export function GlobalSchemaRunTracker() {
         </Box>
       ) : null}
     </Box>
-  )
+  ), document.body)
 }

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge, Box, Button, Flex, Text } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons'
 import {
@@ -35,12 +36,21 @@ function formatDuration(seconds) {
   return `${s}s`
 }
 
+function stageLabel(stage) {
+  return String(stage || '')
+    .replaceAll('_', ' ')
+    .replaceAll('-', ' ')
+    .replace(/\b\w/g, (m) => m.toUpperCase())
+}
+
 export function GlobalSddRunTracker() {
+  const STATUS_POLL_INTERVAL_MS = 10_000
   const [activeRun, setActiveRun] = useState(() => getActiveSddRun())
   const [collapsed, setCollapsed] = useState(() => getSddTrackerCollapsed())
   const [error, setError] = useState('')
   const [steps, setSteps] = useState([])
   const [totalElapsed, setTotalElapsed] = useState(null)
+  const [actionLoading, setActionLoading] = useState('')
 
   useEffect(() => {
     const sync = () => setActiveRun(getActiveSddRun())
@@ -59,10 +69,12 @@ export function GlobalSddRunTracker() {
 
   useEffect(() => {
     if (!activeRun?.orgId || !activeRun?.projectId || !activeRun?.startedAt || !activeRun?.runId) return undefined
+    if (activeRun?.status === 'completed' || activeRun?.status === 'failed' || activeRun?.status === 'stopped') return undefined
     let stopped = false
     let timer = null
 
     const poll = async () => {
+      if (stopped) return
       const startedAt = Number(activeRun.startedAt) || Date.now()
       const elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000))
       setTotalElapsed(elapsed)
@@ -98,7 +110,7 @@ export function GlobalSddRunTracker() {
       // Do not mark long-running jobs as failed on client timeout;
       // backend status is the source of truth.
       setActiveSddRun({ ...activeRun, status: activeRun.status || 'running', message: '' })
-      timer = window.setTimeout(poll, 2000)
+      timer = window.setTimeout(poll, STATUS_POLL_INTERVAL_MS)
     }
 
     poll()
@@ -114,14 +126,29 @@ export function GlobalSddRunTracker() {
     return `SDD Run • ${activeRun.projectId.slice(-6)}`
   }, [activeRun?.projectId])
 
+  const stepItems = steps.length > 0 ? steps : [{ stage: 'sdd_generation', status: status || 'queued' }]
+  const latestCompletedIdx = (() => {
+    for (let i = stepItems.length - 1; i >= 0; i -= 1) {
+      if (String(stepItems[i]?.status || '') === 'completed') return i
+    }
+    return -1
+  })()
+  const progressPct = (() => {
+    if (stepItems.length <= 1) return status === 'completed' ? 100 : status ? 30 : 0
+    const done = latestCompletedIdx + 1
+    return Math.max(0, Math.min(100, Math.round((done / stepItems.length) * 100)))
+  })()
+
   if (!activeRun?.startedAt) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal((
     <Box
       style={{
         position: 'fixed',
         right: 0,
-        top: '68%',
+        top: '62%',
         transform: 'translateY(-50%)',
         zIndex: 1000,
         display: 'flex',
@@ -144,19 +171,31 @@ export function GlobalSddRunTracker() {
         <Box
           p="3"
           style={{
-            width: 320,
-            background: 'var(--color-panel-solid)',
-            border: '1px solid var(--gray-6)',
+            width: 340,
+            background: 'linear-gradient(180deg, rgba(99,102,241,0.14), rgba(0,0,0,0))',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255,255,255,0.10)',
             borderRight: 'none',
             borderTopLeftRadius: 'var(--radius-3)',
             borderBottomLeftRadius: 'var(--radius-3)',
-            boxShadow: '0 12px 30px rgba(0,0,0,0.16)',
+            boxShadow: '0 16px 44px rgba(0,0,0,0.28)',
           }}
         >
           <Flex justify="between" align="center" mb="2">
             <Text size="2" weight="bold">{title}</Text>
             <Badge color={statusColor(status)}>{status}</Badge>
           </Flex>
+          <Box
+            style={{
+              height: 6,
+              borderRadius: 999,
+              background: 'rgba(255,255,255,0.10)',
+              overflow: 'hidden',
+              marginBottom: 10,
+            }}
+          >
+            <Box style={{ height: '100%', width: `${progressPct}%`, background: 'rgba(99,102,241,0.65)' }} />
+          </Box>
           <Text size="1" color="gray" style={{ display: 'block', marginBottom: 8 }}>
             Total runtime: {formatDuration(totalElapsed)}
           </Text>
@@ -166,31 +205,57 @@ export function GlobalSddRunTracker() {
           {error ? (
             <Text size="1" color="red" style={{ display: 'block', marginBottom: 8 }}>{error}</Text>
           ) : null}
-          <Flex direction="column" gap="2" style={{ maxHeight: 180, overflowY: 'auto' }}>
-            {(steps.length > 0 ? steps : [{ stage: 'sdd_generation', status }]).map((step, idx) => (
-              <Flex key={`${step.stage || 'stage'}-${idx}`} justify="between" align="center">
-                <Flex direction="column" gap="0">
-                  <Text size="1">{step.stage || 'sdd_generation'}</Text>
-                  <Text size="1" color="gray">Done in: {formatDuration(step.duration_seconds)}</Text>
+          <Flex direction="column" gap="2" style={{ maxHeight: 190, overflowY: 'auto' }}>
+            {stepItems.map((step, idx) => {
+              const s = String(step?.status || 'queued')
+              const stage = stageLabel(step?.stage || 'sdd_generation')
+              const isActive = s === 'running' || (idx === latestCompletedIdx + 1 && status === 'running')
+              const isDone = s === 'completed' || idx <= latestCompletedIdx
+              return (
+                <Flex key={`${step.stage || 'stage'}-${idx}`} justify="between" align="center">
+                  <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+                    <Box
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: 999,
+                        background: isDone ? 'rgba(34,197,94,0.85)' : isActive ? 'rgba(99,102,241,0.85)' : 'rgba(148,163,184,0.55)',
+                        boxShadow: isActive ? '0 0 0 3px rgba(99,102,241,0.18)' : 'none',
+                        flexShrink: 0,
+                      }}
+                    />
+                    <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
+                      <Text size="1" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 210 }}>
+                        {stage}
+                      </Text>
+                      <Text size="1" color="gray">Done in: {formatDuration(step.duration_seconds)}</Text>
+                    </Flex>
+                  </Flex>
+                  <Badge color={statusColor(s)} size="1">{s}</Badge>
                 </Flex>
-                <Badge color={statusColor(step.status)} size="1">{step.status || 'queued'}</Badge>
-              </Flex>
-            ))}
+              )
+            })}
           </Flex>
-          <Flex justify="end" mt="3" gap="2">
+          <Flex justify="end" mt="3" gap="2" wrap="wrap">
             {status === 'running' ? (
               <Button
                 variant="soft"
                 size="1"
                 color="amber"
+                disabled={actionLoading !== ''}
                 onClick={async () => {
                   if (!activeRun?.runId) return
-                  await pauseRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
-                  setActiveSddRun({ ...activeRun, status: 'paused' })
-                  setActiveRun((prev) => (prev ? { ...prev, status: 'paused' } : prev))
+                  setActionLoading('pause')
+                  try {
+                    await pauseRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
+                    setActiveSddRun({ ...activeRun, status: 'paused' })
+                    setActiveRun((prev) => (prev ? { ...prev, status: 'paused' } : prev))
+                  } finally {
+                    setActionLoading('')
+                  }
                 }}
               >
-                Pause
+                {actionLoading === 'pause' ? 'Pausing...' : 'Pause'}
               </Button>
             ) : null}
             {status === 'paused' ? (
@@ -198,14 +263,20 @@ export function GlobalSddRunTracker() {
                 variant="soft"
                 size="1"
                 color="blue"
+                disabled={actionLoading !== ''}
                 onClick={async () => {
                   if (!activeRun?.runId) return
-                  await resumeRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
-                  setActiveSddRun({ ...activeRun, status: 'running' })
-                  setActiveRun((prev) => (prev ? { ...prev, status: 'running' } : prev))
+                  setActionLoading('resume')
+                  try {
+                    await resumeRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
+                    setActiveSddRun({ ...activeRun, status: 'running' })
+                    setActiveRun((prev) => (prev ? { ...prev, status: 'running' } : prev))
+                  } finally {
+                    setActionLoading('')
+                  }
                 }}
               >
-                Resume
+                {actionLoading === 'resume' ? 'Resuming...' : 'Resume'}
               </Button>
             ) : null}
             {(status === 'running' || status === 'paused' || status === 'queued') ? (
@@ -213,22 +284,28 @@ export function GlobalSddRunTracker() {
                 variant="soft"
                 size="1"
                 color="red"
+                disabled={actionLoading !== ''}
                 onClick={async () => {
                   if (!activeRun?.runId) return
-                  await stopRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
-                  setActiveSddRun({ ...activeRun, status: 'stopped', message: 'Run stopped by user.' })
-                  setActiveRun((prev) => (prev ? { ...prev, status: 'stopped', message: 'Run stopped by user.' } : prev))
+                  setActionLoading('stop')
+                  try {
+                    await stopRequirementsSystemDesignRun(activeRun.orgId, activeRun.projectId, activeRun.runId)
+                    setActiveSddRun({ ...activeRun, status: 'stopped', message: 'Run stopped by user.' })
+                    setActiveRun((prev) => (prev ? { ...prev, status: 'stopped', message: 'Run stopped by user.' } : prev))
+                  } finally {
+                    setActionLoading('')
+                  }
                 }}
               >
-                Stop
+                {actionLoading === 'stop' ? 'Stopping...' : 'Stop'}
               </Button>
             ) : null}
-            <Button variant="soft" size="1" color="gray" onClick={() => clearActiveSddRun()}>
+            <Button variant="soft" size="1" color="gray" onClick={() => clearActiveSddRun()} disabled={actionLoading !== ''}>
               Dismiss
             </Button>
           </Flex>
         </Box>
       ) : null}
     </Box>
-  )
+  ), document.body)
 }

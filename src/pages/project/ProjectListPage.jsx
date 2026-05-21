@@ -25,12 +25,16 @@ import {
   InfoCircledIcon,
 } from '@radix-ui/react-icons'
 import { deleteProject, listProjects, restoreProject } from '../../services/projectApi'
+import { listMyProjectAccessRequests, listProjectCatalog, requestProjectAccess } from '../../services/projectApi'
+import { useAuth } from '../../auth/AuthContext'
 
 const PROJECT_LIST_VIEW_KEY = 'dv_project_list_view'
 const PROJECT_LIST_STATUS_FILTER_KEY = 'dv_project_list_status_filter'
 
 export function ProjectListPage() {
   const { orgId } = useParams()
+  const { sessionUser } = useAuth()
+  const canCreateProject = (sessionUser?.role || '').toLowerCase() !== 'viewer'
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(() => {
     const saved = localStorage.getItem(PROJECT_LIST_STATUS_FILTER_KEY)
@@ -45,6 +49,11 @@ export function ProjectListPage() {
   const [deletingId, setDeletingId] = useState('')
   const [restoringId, setRestoringId] = useState('')
   const [error, setError] = useState('')
+  const [catalog, setCatalog] = useState([])
+  const [catalogLoading, setCatalogLoading] = useState(false)
+  const [catalogError, setCatalogError] = useState('')
+  const [accessRequests, setAccessRequests] = useState([])
+  const [requestingProjectId, setRequestingProjectId] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -69,6 +78,34 @@ export function ProjectListPage() {
       clearTimeout(timer)
     }
   }, [orgId, search, statusFilter])
+
+  useEffect(() => {
+    let mounted = true
+    async function loadCatalog() {
+      if (!orgId) return
+      if (canCreateProject) return
+      setCatalogLoading(true)
+      setCatalogError('')
+      try {
+        const [projects, myRequests] = await Promise.all([
+          listProjectCatalog(orgId),
+          listMyProjectAccessRequests(orgId),
+        ])
+        if (!mounted) return
+        setCatalog(Array.isArray(projects) ? projects : [])
+        setAccessRequests(Array.isArray(myRequests) ? myRequests : [])
+      } catch (err) {
+        if (!mounted) return
+        setCatalogError(err instanceof Error ? err.message : 'Failed to load project catalog')
+      } finally {
+        if (mounted) setCatalogLoading(false)
+      }
+    }
+    loadCatalog()
+    return () => {
+      mounted = false
+    }
+  }, [orgId, canCreateProject])
 
   useEffect(() => {
     localStorage.setItem(PROJECT_LIST_VIEW_KEY, view)
@@ -214,12 +251,14 @@ export function ProjectListPage() {
           >
             <ListBulletIcon width="18" height="18" />
           </IconButton>
-          <Button size="3" asChild>
-            <Link to={`/organizations/${orgId}/projects/new`}>
-              <PlusIcon width="18" height="18" />
-              New project
-            </Link>
-          </Button>
+          {canCreateProject ? (
+            <Button size="3" asChild>
+              <Link to={`/organizations/${orgId}/projects/new`}>
+                <PlusIcon width="18" height="18" />
+                New project
+              </Link>
+            </Button>
+          ) : null}
         </Flex>
 
         {isLoading ? (
@@ -234,7 +273,80 @@ export function ProjectListPage() {
           </Text>
         ) : null}
 
-        {!isLoading && !error && isEmpty ? (
+        {!isLoading && !error && isEmpty && !canCreateProject ? (
+          <Card variant="surface" size="3">
+            <Flex direction="column" gap="4" p="5">
+              <Heading size="6">Request project access</Heading>
+              <Text size="2" color="gray">
+                You don&apos;t have access to any projects yet. Request access from your organization admin.
+              </Text>
+
+              {catalogLoading ? (
+                <Flex align="center" gap="2">
+                  <Spinner />
+                  <Text size="2" color="gray">
+                    Loading projects...
+                  </Text>
+                </Flex>
+              ) : null}
+              {catalogError ? (
+                <Text size="2" color="red">
+                  {catalogError}
+                </Text>
+              ) : null}
+
+              <Flex direction="column" gap="2">
+                {catalog.map((project) => {
+                  const pending = accessRequests.some((r) => r.project_id === project.id && r.status === 'pending')
+                  return (
+                    <Card key={project.id} variant="surface" size="1">
+                      <Flex align="center" justify="between" gap="3">
+                        <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
+                          <Text size="2" weight="medium" trim="end">
+                            {project.name}
+                          </Text>
+                          <Text size="1" color="gray">
+                            {pending ? 'Request pending' : 'Not a member'}
+                          </Text>
+                        </Flex>
+                        <Button
+                          size="1"
+                          variant={pending ? 'soft' : 'solid'}
+                          disabled={pending || requestingProjectId === project.id}
+                          onClick={async () => {
+                            setCatalogError('')
+                            setRequestingProjectId(project.id)
+                            try {
+                              const created = await requestProjectAccess(orgId, project.id)
+                              setAccessRequests((prev) => {
+                                const next = Array.isArray(prev) ? [...prev] : []
+                                if (created?.id && !next.some((r) => r.id === created.id)) next.unshift(created)
+                                return next
+                              })
+                            } catch (err) {
+                              setCatalogError(err instanceof Error ? err.message : 'Unable to request access')
+                            } finally {
+                              setRequestingProjectId('')
+                            }
+                          }}
+                        >
+                          {requestingProjectId === project.id ? 'Requesting...' : pending ? 'Requested' : 'Request access'}
+                        </Button>
+                      </Flex>
+                    </Card>
+                  )
+                })}
+                {!catalogLoading && !catalogError && catalog.length === 0 ? (
+                  <Text size="2" color="gray">
+                    No projects available.
+                  </Text>
+                ) : null}
+              </Flex>
+            </Flex>
+          </Card>
+        ) : null}
+
+        {!isLoading && !error && isEmpty && canCreateProject ? (
           <Card
             variant="surface"
             size="3"
@@ -289,7 +401,7 @@ export function ProjectListPage() {
                   to={`/organizations/${orgId}/projects/${project.id}`}
                   style={{ textDecoration: 'none', color: 'inherit' }}
                 >
-                  <Flex direction="column" gap="2">
+                  <Flex direction="column" gap="4">
                     <Flex justify="between" align="start">
                     <Text size="3" weight="bold" trim="end">
                       {project.name}
@@ -298,20 +410,14 @@ export function ProjectListPage() {
                         {renderProjectActions(project)}
                       </Box>
                     </Flex>
-                    <Text size="2" color="gray">{project.region || 'Region not set'}</Text>
+                   
                     <Badge
                       size="1"
                       color={(project.status || 'active') === 'paused' ? 'amber' : 'green'}
                     >
                       {(project.status || 'active').toUpperCase()}
                     </Badge>
-                    <Flex align="center" gap="1">
-                      <PauseIcon width="14" height="14" style={{ opacity: 0.7 }} />
-                      <InfoCircledIcon width="14" height="14" style={{ opacity: 0.7 }} />
-                      <Text size="1" color="gray">
-                        {project.status_message || project.statusMessage || 'Project ready'}
-                      </Text>
-                    </Flex>
+                    
                   </Flex>
                 </Link>
               </Card>

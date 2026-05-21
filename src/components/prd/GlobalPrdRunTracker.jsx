@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Badge, Box, Button, Flex, Text } from '@radix-ui/themes'
 import { ChevronLeftIcon, ChevronRightIcon } from '@radix-ui/react-icons'
 import { getLlmPrdRunStatus, pauseLlmPrdRun, resumeLlmPrdRun, stopLlmPrdRun } from '../../services/requirementsApi'
@@ -31,6 +32,7 @@ function formatDuration(seconds) {
 }
 
 export function GlobalPrdRunTracker() {
+  const STATUS_POLL_INTERVAL_MS = 10_000
   const [activeRun, setActiveRun] = useState(() => getActivePrdRun())
   const [collapsed, setCollapsed] = useState(() => getPrdTrackerCollapsed())
   const [steps, setSteps] = useState([])
@@ -46,10 +48,12 @@ export function GlobalPrdRunTracker() {
 
   useEffect(() => {
     if (!activeRun?.runId || !activeRun?.orgId || !activeRun?.projectId) return undefined
+    if (activeRun?.status === 'completed' || activeRun?.status === 'failed' || activeRun?.status === 'stopped') return undefined
     let stopped = false
     let timer = null
 
     const poll = async () => {
+      if (stopped) return
       try {
         const run = await getLlmPrdRunStatus(activeRun.orgId, activeRun.projectId, activeRun.runId)
         if (stopped) return
@@ -72,7 +76,7 @@ export function GlobalPrdRunTracker() {
         if (stopped) return
         setError(e instanceof Error ? e.message : 'Failed to poll run status')
       }
-      timer = window.setTimeout(poll, 2000)
+      timer = window.setTimeout(poll, STATUS_POLL_INTERVAL_MS)
     }
 
     poll()
@@ -90,7 +94,9 @@ export function GlobalPrdRunTracker() {
 
   if (!activeRun?.runId) return null
 
-  return (
+  if (typeof document === 'undefined') return null
+
+  return createPortal((
     <Box
       style={{
         position: 'fixed',
@@ -217,5 +223,5 @@ export function GlobalPrdRunTracker() {
         </Box>
       ) : null}
     </Box>
-  )
+  ), document.body)
 }

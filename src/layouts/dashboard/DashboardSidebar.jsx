@@ -1,5 +1,5 @@
-import { Link, useLocation, useParams } from 'react-router-dom'
-import { Box, Flex, IconButton, ScrollArea, Text } from '@radix-ui/themes'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { Avatar, Box, Flex, IconButton, ScrollArea, Text, DropdownMenu } from '@radix-ui/themes'
 import {
   DashboardIcon,
   PersonIcon,
@@ -9,10 +9,12 @@ import {
   ReaderIcon,
   LightningBoltIcon,
   ChatBubbleIcon,
+  ChevronDownIcon,
   DoubleArrowLeftIcon,
   DoubleArrowRightIcon,
 } from '@radix-ui/react-icons'
 import logo from '../../assets/logo.svg'
+import { useAuth } from '../../auth/AuthContext'
 
 function NavItem({ to, label, icon: Icon, active, collapsed }) {
   return (
@@ -43,6 +45,16 @@ function NavItem({ to, label, icon: Icon, active, collapsed }) {
 export function DashboardSidebar({ collapsed, onToggle }) {
   const { orgId, projectId } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
+  const { sessionUser, refreshSession, signOut } = useAuth()
+  const email = sessionUser?.email || ''
+  const initials =
+    (email || sessionUser?.tenant_name || 'DV')
+      .split(/[@\s]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((x) => x[0]?.toUpperCase())
+      .join('') || 'DV'
 
   const base = `/organizations/${orgId}/projects/${projectId}/dashboard`
   const items = [
@@ -80,16 +92,27 @@ export function DashboardSidebar({ collapsed, onToggle }) {
         minWidth: 0,
       }}
     >
-      <Flex align="center" gap="2" p="3" style={{ borderBottom: '1px solid var(--gray-6)' }}>
-        <Box asChild style={{ width: 30, height: 30, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
-          <img src={logo} alt="DecisionVault logo" />
-        </Box>
-        {!collapsed ? (
+      {collapsed ? (
+        <Flex
+          align="center"
+          justify="center"
+          py="3"
+          style={{ borderBottom: '1px solid var(--gray-6)', width: '100%' }}
+        >
+          <Box asChild style={{ width: 30, height: 30, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <img src={logo} alt="DecisionVault logo" />
+          </Box>
+        </Flex>
+      ) : (
+        <Flex align="center" gap="2" p="3" style={{ borderBottom: '1px solid var(--gray-6)', width: '100%' }}>
+          <Box asChild style={{ width: 30, height: 30, borderRadius: 6, overflow: 'hidden', flexShrink: 0 }}>
+            <img src={logo} alt="DecisionVault logo" />
+          </Box>
           <Text size="3" weight="bold">
             DecisionVault
           </Text>
-        ) : null}
-      </Flex>
+        </Flex>
+      )}
 
       <ScrollArea type="auto" scrollbars="vertical" style={{ flex: 1 }}>
         <Flex direction="column" gap="1" p="2">
@@ -106,17 +129,82 @@ export function DashboardSidebar({ collapsed, onToggle }) {
         </Flex>
       </ScrollArea>
 
-      <Flex justify="end" p="2" style={{ borderTop: '1px solid var(--gray-6)' }}>
-        <IconButton
-          variant="ghost"
-          size="2"
-          radius="full"
-          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          onClick={onToggle}
-        >
-          {collapsed ? <DoubleArrowRightIcon width="16" height="16" /> : <DoubleArrowLeftIcon width="16" height="16" />}
-        </IconButton>
-      </Flex>
+      <Box style={{ borderTop: '1px solid var(--gray-6)' }}>
+        <Flex p="2" justify={collapsed ? 'center' : 'start'}>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger>
+              {collapsed ? (
+                <IconButton variant="ghost" size="2" radius="full" aria-label="Account">
+                  <Avatar size="2" radius="full" fallback={initials} />
+                </IconButton>
+              ) : (
+                <Box
+                  asChild
+                  style={{
+                    width: '100%',
+                    border: 0,
+                    padding: 0,
+                    background: 'transparent',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <button type="button" aria-label="Account">
+                    <Flex
+                      align="center"
+                      justify="between"
+                      gap="2"
+                      px="2"
+                      py="2"
+                      style={{ borderRadius: 10, background: 'var(--gray-2)' }}
+                    >
+                      <Flex align="center" gap="2" style={{ minWidth: 0 }}>
+                        <Avatar size="2" radius="full" fallback={initials} />
+                        <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
+                          <Text size="2" weight="medium" trim="end">
+                            {sessionUser?.email || 'Account'}
+                          </Text>
+                          <Text size="1" color="gray" trim="end">
+                            {sessionUser?.role || 'unknown'}
+                          </Text>
+                        </Flex>
+                      </Flex>
+                      <ChevronDownIcon width="14" height="14" />
+                    </Flex>
+                  </button>
+                </Box>
+              )}
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Content align={collapsed ? 'start' : 'end'} size="2">
+              <DropdownMenu.Label>Session</DropdownMenu.Label>
+              <DropdownMenu.Item disabled>{sessionUser?.email || 'No email'}</DropdownMenu.Item>
+              <DropdownMenu.Item disabled>Role: {sessionUser?.role || 'unknown'}</DropdownMenu.Item>
+              <DropdownMenu.Item disabled>Org: {sessionUser?.tenant_name || 'unknown'}</DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <DropdownMenu.Item onSelect={() => navigate('profile')}>Profile</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => void refreshSession()}>Refresh session</DropdownMenu.Item>
+              <DropdownMenu.Item color="red" onSelect={signOut}>
+                Logout
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Root>
+        </Flex>
+
+        <Flex justify="end" p="2">
+          <IconButton
+            variant="ghost"
+            size="2"
+            radius="full"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            onClick={onToggle}
+          >
+            {collapsed ? (
+              <DoubleArrowRightIcon width="16" height="16" />
+            ) : (
+              <DoubleArrowLeftIcon width="16" height="16" />
+            )}
+          </IconButton>
+        </Flex>
+      </Box>
     </Flex>
   )
 }

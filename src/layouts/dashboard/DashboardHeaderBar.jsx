@@ -1,6 +1,7 @@
-import { Link, useLocation, useParams } from 'react-router-dom'
-import { Box, Flex, Text, IconButton, Avatar, Button } from '@radix-ui/themes'
-import { LightningBoltIcon, BellIcon, PlusIcon } from '@radix-ui/react-icons'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { Box, Flex, Text, IconButton, Avatar, DropdownMenu } from '@radix-ui/themes'
+import { BellIcon } from '@radix-ui/react-icons'
+import { useAuth } from '../../auth/AuthContext'
 
 function getDashboardTitle(pathname) {
   if (pathname.includes('/overview')) return 'Overview'
@@ -14,9 +15,18 @@ function getDashboardTitle(pathname) {
 }
 
 export function DashboardHeaderBar() {
-  const { orgId, projectId } = useParams()
   const location = useLocation()
+  const navigate = useNavigate()
   const title = getDashboardTitle(location.pathname)
+  const { sessionUser, signOut } = useAuth()
+  const email = sessionUser?.email || ''
+  const initials =
+    (email || sessionUser?.tenant_name || 'DV')
+      .split(/[@\s]+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((x) => x[0]?.toUpperCase())
+      .join('') || 'DV'
 
   return (
     <Flex
@@ -45,21 +55,27 @@ export function DashboardHeaderBar() {
       </Flex>
 
       <Flex align="center" gap="2">
-        <Button variant="soft" size="2" asChild>
-          <Link to={`/organizations/${orgId}/projects/${projectId}/dashboard`}>
-            <PlusIcon width="14" height="14" />
-            New thread
-          </Link>
-        </Button>
-        <IconButton variant="ghost" size="2" radius="full" aria-label="Automation">
-          <LightningBoltIcon width="16" height="16" />
-        </IconButton>
         <IconButton variant="ghost" size="2" radius="full" aria-label="Notifications">
           <BellIcon width="16" height="16" />
         </IconButton>
-        <Box>
-          <Avatar size="2" radius="full" fallback="DV" />
-        </Box>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <IconButton variant="ghost" size="2" radius="full" aria-label="Account">
+              <Avatar size="2" radius="full" fallback={initials} />
+            </IconButton>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content align="end" size="2">
+            <DropdownMenu.Label>Session</DropdownMenu.Label>
+            <DropdownMenu.Item disabled>{sessionUser?.email || 'No email'}</DropdownMenu.Item>
+            <DropdownMenu.Item disabled>Role: {sessionUser?.role || 'unknown'}</DropdownMenu.Item>
+            <DropdownMenu.Item disabled>Org: {sessionUser?.tenant_name || 'unknown'}</DropdownMenu.Item>
+            <DropdownMenu.Separator />
+            <DropdownMenu.Item onSelect={() => navigate('profile')}>Profile</DropdownMenu.Item>
+            <DropdownMenu.Item color="red" onSelect={signOut}>
+              Logout
+            </DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
       </Flex>
     </Flex>
   )

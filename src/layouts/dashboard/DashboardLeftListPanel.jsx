@@ -299,7 +299,7 @@ export function DashboardLeftListPanel() {
         minWidth: 0,
       }}
     >
-      <Flex align="center" justify="between" p="3" style={{ borderBottom: '1px solid var(--gray-6)' }}>
+      <Flex align="center" justify="between" p="15px" style={{ borderBottom: '1px solid var(--gray-6)' }}>
         <Text size="3" weight="medium">
           Messenger
         </Text>
@@ -310,47 +310,8 @@ export function DashboardLeftListPanel() {
 
       <ScrollArea type="auto" scrollbars="vertical" style={{ flex: 1 }}>
         <Box p="2">
-          <Box
-            asChild
-            style={{
-              display: 'block',
-              textDecoration: 'none',
-              color: 'inherit',
-              borderRadius: 8,
-              background: location.pathname === base ? 'var(--gray-4)' : 'transparent',
-              marginBottom: 10,
-            }}
-          >
-            <Link to={base}>
-              <Flex align="center" gap="2" px="2" py="1">
-                <LightningBoltIcon width="14" height="14" />
-                <Text size="2" weight="medium">
-                  Assistant
-                </Text>
-              </Flex>
-            </Link>
-          </Box>
+        
 
-          <Box
-            asChild
-            style={{
-              display: 'block',
-              textDecoration: 'none',
-              color: 'inherit',
-              borderRadius: 8,
-              background: isMessengerActive ? 'var(--gray-4)' : 'transparent',
-              marginBottom: 10,
-            }}
-          >
-            <Link to={`${base}/messenger`}>
-              <Flex align="center" gap="2" px="2" py="1">
-                <ChatBubbleIcon width="14" height="14" />
-                <Text size="2" weight="medium">
-                  Messenger
-                </Text>
-              </Flex>
-            </Link>
-          </Box>
 
           <Section title="Favorites" open={favoritesOpen} onToggle={() => setFavoritesOpen((v) => !v)}>
             {favoriteChannels.map((channel) => (

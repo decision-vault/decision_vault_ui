@@ -3,7 +3,6 @@ import { Outlet, useLocation, useParams } from 'react-router-dom'
 import { Box, Flex } from '@radix-ui/themes'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardLeftListPanel } from './DashboardLeftListPanel'
-import { DashboardHeaderBar } from './DashboardHeaderBar'
 
 /**
  * Dashboard layout with collapsible navigation sidebar and left list panel.
@@ -53,7 +52,6 @@ export function DashboardLayout() {
       />
       {showLeftListPanel ? <DashboardLeftListPanel /> : null}
       <Flex direction="column" style={{ minWidth: 0, minHeight: 0, overflow: 'hidden' }}>
-        <DashboardHeaderBar />
         <Box style={{ minWidth: 0, minHeight: 0, overflow: 'auto', flex: 1 }}>
           <Outlet />
         </Box>

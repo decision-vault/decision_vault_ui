@@ -27,3 +27,33 @@ export function createOrganization(payload) {
     body: JSON.stringify(payload),
   })
 }
+
+export function listOrgInvites(orgId, { includeExpired = false } = {}) {
+  const qs = includeExpired ? '?include_expired=true' : ''
+  return apiRequest(`/api/orgs/me/invites${qs}`, {
+    method: 'GET',
+    headers: orgId ? { 'x-tenant-id': orgId } : undefined,
+  })
+}
+
+export function createOrgInvite(orgId, payload) {
+  return apiRequest('/api/orgs/me/invites', {
+    method: 'POST',
+    headers: orgId ? { 'x-tenant-id': orgId } : undefined,
+    body: JSON.stringify(payload),
+  })
+}
+
+export function acceptOrgInvite(payload) {
+  return apiRequest('/api/orgs/invites/accept', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+export function reinviteOrgInvite(orgId, inviteId) {
+  return apiRequest(`/api/orgs/me/invites/${encodeURIComponent(inviteId)}/reinvite`, {
+    method: 'POST',
+    headers: orgId ? { 'x-tenant-id': orgId } : undefined,
+  })
+}

@@ -6,6 +6,7 @@ import { DashboardLayout } from '../layouts/dashboard/DashboardLayout'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { SignupPage } from '../pages/auth/SignupPage'
 import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
+import { AcceptInvitePage } from '../pages/auth/AcceptInvitePage'
 import { DocsPage } from '../pages/auth/DocsPage'
 import { TermsPage } from '../pages/auth/TermsPage'
 import { PrivacyPage } from '../pages/auth/PrivacyPage'
@@ -28,6 +29,7 @@ import { ProjectLogsPage } from '../pages/project/ProjectLogsPage'
 import { MessengerPage } from '../pages/project/MessengerPage'
 import { PersonalChatPage } from '../pages/project/PersonalChatPage'
 import { GeneratedPrdViewPage } from '../pages/project/GeneratedPrdViewPage'
+import { UserProfilePage } from '../pages/project/UserProfilePage'
 import { GuestRoute, ProtectedRoute } from '../auth/ProtectedRoute'
 
 function RedirectToProjectDashboard() {
@@ -36,6 +38,10 @@ function RedirectToProjectDashboard() {
 }
 
 export const router = createBrowserRouter([
+  {
+    path: '/invite',
+    element: <AcceptInvitePage />,
+  },
   {
     path: '/',
     element: (
@@ -83,6 +89,7 @@ export const router = createBrowserRouter([
       { path: 'channel/:channelId', element: <ChannelThreadPage /> },
       { path: 'slack/:slackChannelId', element: <ChannelThreadPage /> },
       { path: 'team', element: <ProjectTeamPage /> },
+      { path: 'profile', element: <UserProfilePage /> },
       { path: 'llm-config', element: <ProjectLlmConfigPage /> },
       { path: 'connectors', element: <ProjectConnectorsPage /> },
       { path: 'logs', element: <ProjectLogsPage /> },

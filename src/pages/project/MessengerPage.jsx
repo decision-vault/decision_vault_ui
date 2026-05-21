@@ -1,15 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Avatar, Badge, Box, Button, Card, Flex, Heading, ScrollArea, Text } from '@radix-ui/themes'
-import { ChatBubbleIcon, PersonIcon } from '@radix-ui/react-icons'
-import { createPersonalChat, listPersonalChats, listPersonalContacts } from '../../services/messengerApi'
+import { Link, useParams } from 'react-router-dom'
+import { Avatar, Badge, Box, Card, Flex, Heading, ScrollArea, Text } from '@radix-ui/themes'
+import { ChatBubbleIcon } from '@radix-ui/react-icons'
+import { listPersonalChats } from '../../services/messengerApi'
 
 export function MessengerPage() {
   const { orgId, projectId } = useParams()
-  const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [chats, setChats] = useState([])
-  const [contacts, setContacts] = useState([])
 
   useEffect(() => {
     let mounted = true
@@ -17,17 +15,12 @@ export function MessengerPage() {
       if (!orgId || !projectId) return
       setLoading(true)
       try {
-        const [chatData, contactData] = await Promise.all([
-          listPersonalChats(orgId, projectId),
-          listPersonalContacts(orgId, projectId),
-        ])
+        const chatData = await listPersonalChats(orgId, projectId)
         if (!mounted) return
         setChats(chatData || [])
-        setContacts(contactData || [])
       } catch {
         if (!mounted) return
         setChats([])
-        setContacts([])
       } finally {
         if (mounted) setLoading(false)
       }
@@ -37,19 +30,6 @@ export function MessengerPage() {
       mounted = false
     }
   }, [orgId, projectId])
-
-  const startChatHandler = async (participantUserId) => {
-    try {
-      const created = await createPersonalChat(orgId, projectId, {
-        participant_user_id: participantUserId,
-      })
-      if (created?.id) {
-        navigate(`/organizations/${orgId}/projects/${projectId}/dashboard/personal/${created.id}`)
-      }
-    } catch {
-      // ignore for now
-    }
-  }
 
   return (
     <Box p="4" style={{ height: '100%' }}>
@@ -61,12 +41,22 @@ export function MessengerPage() {
 
         <Flex gap="3" style={{ minHeight: 0, flex: 1 }}>
           <Card size="2" style={{ flex: 1, minWidth: 0 }}>
-            <Text size="2" weight="medium">Recent chats</Text>
-            <ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: '55vh', marginTop: 12 }}>
+            <ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: '55vh' }}>
               <Flex direction="column" gap="2">
                 {loading ? <Text size="2" color="gray">Loading chats...</Text> : null}
                 {!loading && chats.length === 0 ? (
-                  <Text size="2" color="gray">No chats yet.</Text>
+                  <Flex
+                    direction="column"
+                    align="center"
+                    justify="center"
+                    gap="2"
+                    style={{ padding: 24, minHeight: 220 }}
+                  >
+                    <ChatBubbleIcon width="28" height="28" color="var(--gray-9)" />
+                    <Text size="2" color="gray" style={{ textAlign: 'center' }}>
+                      No chats yet.
+                    </Text>
+                  </Flex>
                 ) : null}
                 {chats.map((chat) => (
                   <Box
@@ -101,30 +91,6 @@ export function MessengerPage() {
                       </Flex>
                     </Link>
                   </Box>
-                ))}
-              </Flex>
-            </ScrollArea>
-          </Card>
-
-          <Card size="2" style={{ width: 340, minWidth: 280 }}>
-            <Text size="2" weight="medium">Start a new chat</Text>
-            <ScrollArea type="auto" scrollbars="vertical" style={{ maxHeight: '55vh', marginTop: 12 }}>
-              <Flex direction="column" gap="2">
-                {contacts.length === 0 ? (
-                  <Text size="2" color="gray">No teammates available.</Text>
-                ) : null}
-                {contacts.map((contact) => (
-                  <Flex key={contact.user_id} align="center" justify="between" gap="2">
-                    <Flex align="center" gap="2" style={{ minWidth: 0 }}>
-                      <PersonIcon width="14" height="14" />
-                      <Text size="2" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {contact.display_name}
-                      </Text>
-                    </Flex>
-                    <Button size="1" variant="soft" onClick={() => startChatHandler(contact.user_id)}>
-                      Chat
-                    </Button>
-                  </Flex>
                 ))}
               </Flex>
             </ScrollArea>
