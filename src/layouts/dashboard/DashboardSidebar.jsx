@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Avatar, Box, Button, Flex, ScrollArea, DropdownMenu, Text, IconButton } from '@radix-ui/themes'
+import { useTheme } from '../../components/SystemTheme.jsx'
 import { 
   User, 
   FlaskConical, 
@@ -58,9 +59,9 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { sessionUser, refreshSession, signOut } = useAuth()
+  const { mode: themeMode, setMode: setThemeMode } = useTheme()
   
-  const [selectedTheme, setSelectedTheme] = useState('System')
-  
+  const [selectedTheme, setSelectedTheme] = useState(themeMode)
   const pathParts = location.pathname.split('/')
   const orgIndex = pathParts.indexOf('organizations')
   const projectIndex = pathParts.indexOf('projects')
@@ -97,7 +98,7 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
     return location.pathname.includes(item.match)
   }
 
-  const themesList = ['System', 'Dark', 'Light', 'Classic Dark']
+  const themesList = ['System', 'Dark', 'Light']
 
   return (
     <Flex
@@ -219,6 +220,7 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
                       onClick={(e) => {
                         e.preventDefault(); // Intercepts event bubble to retain menu visibility state
                         setSelectedTheme(t);
+                        setThemeMode(t);
                       }}
                     >
                       <Box style={{ 

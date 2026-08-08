@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import { Theme } from '@radix-ui/themes'
 
 const THEME_KEY = 'dv_theme_mode'
 
@@ -11,13 +10,19 @@ function getSystemDark() {
   }
 }
 
-const ThemeContext = createContext({ mode: 'System', setMode: () => {}, appearance: 'light' })
+function resolveAppearance(mode) {
+  if (mode === 'Dark' || mode === 'Classic Dark') return 'dark'
+  if (mode === 'Light') return 'light'
+  return getSystemDark() ? 'dark' : 'light'
+}
+
+const ThemeContext = createContext({ mode: 'System', setMode: () => {} })
 
 export function useTheme() {
   return useContext(ThemeContext)
 }
 
-export function SystemTheme({ children }) {
+export function ThemeProvider({ children }) {
   const [mode, setMode] = useState(() => {
     try {
       return localStorage.getItem(THEME_KEY) || 'System'
@@ -37,15 +42,16 @@ export function SystemTheme({ children }) {
   }, [])
 
   const appearance = useMemo(() => {
-    if (mode === 'Dark') return 'dark'
+    if (mode === 'Dark' || mode === 'Classic Dark') return 'dark'
     if (mode === 'Light') return 'light'
     return systemDark ? 'dark' : 'light'
   }, [mode, systemDark])
 
-  // Sync the html.dark class + persist preference
+  // Sync the html.dark class + localStorage
   useEffect(() => {
+    const isDark = appearance === 'dark'
     try {
-      document.documentElement.classList.toggle('dark', appearance === 'dark')
+      document.documentElement.classList.toggle('dark', isDark)
       localStorage.setItem(THEME_KEY, mode)
     } catch {
       // ignore
@@ -54,13 +60,27 @@ export function SystemTheme({ children }) {
 
   const value = useMemo(() => ({ mode, setMode, appearance }), [mode, appearance])
 
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
+}
+
+export function SystemTheme({ children }) {
+  const { mode, setMode, appearance } = useTheme()
+  try {
+    document.documentElement.classList.toggle('dark', appearance === 'dark')
+  } catch {
+    // ignore
+  }
   return (
-    <ThemeContext.Provider value={value}>
-      <Theme appearance={appearance} accentColor="blue" grayColor="slate" radius="medium">
-        {children}
-      </Theme>
-    </ThemeContext.Provider>
+    <Theme
+      appearance={appearance}
+      accentColor="blue"
+      grayColor="slate"
+      radius="medium"
+    >
+      {children}
+    </Theme>
   )
 }
 
+// Convenience: expose a hook + shared theme option list for all switchers
 export const THEME_OPTIONS = ['System', 'Dark', 'Light']

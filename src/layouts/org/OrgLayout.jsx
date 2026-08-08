@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { useTheme } from "../../components/SystemTheme.jsx";
 
 import {
   Avatar,
@@ -52,9 +53,10 @@ export function OrgLayout() {
   const [activeDrawer, setActiveDrawer] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState("System");
 
   const { sessionUser, refreshSession, signOut } = useAuth();
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const [selectedTheme, setSelectedTheme] = useState(themeMode);
 
   // Fallbacks matching user details
   const displayName = sessionUser?.email ? sessionUser.email.split("@")[0] : "kaviyarasumaran";
@@ -73,7 +75,7 @@ export function OrgLayout() {
     setActiveDrawer((prev) => (prev === drawerName ? null : drawerName));
   };
 
-  const themesList = ["System", "Dark", "Light", "Classic Dark"];
+  const themesList = ["System", "Dark", "Light"];
 
   return (
     <Box
@@ -253,6 +255,7 @@ export function OrgLayout() {
                       onClick={(e) => {
                         e.preventDefault(); // Retain menu open status while swapping preferences
                         setSelectedTheme(t);
+                        setThemeMode(t);
                       }}
                     >
                       <Box style={{ 

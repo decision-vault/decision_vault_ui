@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useParams, useNavigate, Outlet } from "react-router-dom";
 import { listOrganizations } from "../../services/orgApi";
+import { useTheme } from "../../components/SystemTheme.jsx";
 import {
   Box,
   Button,
@@ -68,7 +69,9 @@ export function ProjectLayout() {
   const [activeDrawer, setActiveDrawer] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [selectedTheme, setSelectedTheme] = useState("System");
+
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const [selectedTheme, setSelectedTheme] = useState(themeMode);
 
   useEffect(() => {
     let mounted = true;
@@ -101,7 +104,7 @@ export function ProjectLayout() {
     setActiveDrawer((prev) => (prev === drawerName ? null : drawerName));
   };
 
-  const themesList = ["System", "Dark", "Light", "Classic Dark"];
+  const themesList = ["System", "Dark", "Light"];
 
   return (
     <Box
@@ -332,6 +335,7 @@ export function ProjectLayout() {
                       onClick={(e) => {
                         e.preventDefault(); 
                         setSelectedTheme(t);
+                        setThemeMode(t);
                       }}
                     >
                       <Box style={{ 
