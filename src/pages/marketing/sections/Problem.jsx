@@ -5,17 +5,17 @@ import { ChatBubbleIcon, FileTextIcon, LoopIcon, QuestionMarkCircledIcon } from 
 const bullets = [
   {
     icon: ChatBubbleIcon,
-    tone: 'bg-cyan-500/10 text-cyan-800 dark:bg-cyan-400/10 dark:text-cyan-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     text: 'Decisions scatter across Slack, docs, PRs, and meeting notes.',
   },
   {
     icon: FileTextIcon,
-    tone: 'bg-indigo-500/10 text-indigo-800 dark:bg-indigo-400/10 dark:text-indigo-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     text: 'Context evaporates after a few sprints and new teammates have to dig for answers.',
   },
   {
     icon: LoopIcon,
-    tone: 'bg-emerald-500/10 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     text: 'Teams re-debate the same trade-offs, reverse decisions blindly, and repeat mistakes.',
   },
   {

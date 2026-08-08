@@ -3,7 +3,6 @@ import { Container } from '../components/Container'
 import { Logo } from '../components/Logo'
 
 const links = [
-  { label: 'Docs', to: '/docs' },
   { label: 'Privacy', to: '/privacy' },
   { label: 'Terms', to: '/terms' },
   { label: 'Contact', href: 'mailto:hello@decisionvault.ai' },
@@ -17,7 +16,7 @@ export function Footer() {
           <div className="flex items-center gap-3">
             <Logo />
             <span className="text-xs text-zinc-500 dark:text-white/45">
-              © {new Date().getFullYear()} DecisionVault. All rights reserved.
+              © {new Date().getFullYear()} Kavi AI. All rights reserved.
             </span>
           </div>
           <div className="flex flex-wrap gap-5 text-sm text-zinc-600 dark:text-white/65">

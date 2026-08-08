@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "DecisionVault UI",
+    "slug": "decision-vault-ui",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "decisionvault",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#09090b"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

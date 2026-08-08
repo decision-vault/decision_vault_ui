@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useNavigate } from 'react-router-dom'
 import {
   Box,
   Flex,
@@ -13,19 +13,19 @@ import {
   Badge,
   DropdownMenu,
   Spinner,
+  Dialog,
+  Progress,
 } from '@radix-ui/themes'
 import {
   MagnifyingGlassIcon,
   PlusIcon,
-  MixerHorizontalIcon,
   ViewGridIcon,
   ListBulletIcon,
   DotsVerticalIcon,
-  PauseIcon,
-  InfoCircledIcon,
+  ChevronDownIcon,
+  ArrowDownIcon,
 } from '@radix-ui/react-icons'
 import { deleteProject, listProjects, restoreProject } from '../../services/projectApi'
-import { listMyProjectAccessRequests, listProjectCatalog, requestProjectAccess } from '../../services/projectApi'
 import { useAuth } from '../../auth/AuthContext'
 
 const PROJECT_LIST_VIEW_KEY = 'dv_project_list_view'
@@ -33,8 +33,10 @@ const PROJECT_LIST_STATUS_FILTER_KEY = 'dv_project_list_status_filter'
 
 export function ProjectListPage() {
   const { orgId } = useParams()
+  const navigate = useNavigate()
   const { sessionUser } = useAuth()
   const canCreateProject = (sessionUser?.role || '').toLowerCase() !== 'viewer'
+  
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState(() => {
     const saved = localStorage.getItem(PROJECT_LIST_STATUS_FILTER_KEY)
@@ -44,16 +46,14 @@ export function ProjectListPage() {
     const saved = localStorage.getItem(PROJECT_LIST_VIEW_KEY)
     return saved === 'list' || saved === 'grid' ? saved : 'grid'
   })
+  
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState('')
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const [restoringId, setRestoringId] = useState('')
   const [error, setError] = useState('')
-  const [catalog, setCatalog] = useState([])
-  const [catalogLoading, setCatalogLoading] = useState(false)
-  const [catalogError, setCatalogError] = useState('')
-  const [accessRequests, setAccessRequests] = useState([])
-  const [requestingProjectId, setRequestingProjectId] = useState('')
 
   useEffect(() => {
     let mounted = true
@@ -63,7 +63,13 @@ export function ProjectListPage() {
         try {
           const data = await listProjects(orgId, search, statusFilter)
           if (!mounted) return
-          setProjects(data || [])
+          const formatted = (data || []).map(p => ({
+            ...p,
+            provider: p.provider || 'AWS',
+            region: p.region || 'ap-southeast-1',
+            tier: p.tier || 'NANO'
+          }))
+          setProjects(formatted)
           setError('')
         } catch (err) {
           if (!mounted) return
@@ -80,34 +86,6 @@ export function ProjectListPage() {
   }, [orgId, search, statusFilter])
 
   useEffect(() => {
-    let mounted = true
-    async function loadCatalog() {
-      if (!orgId) return
-      if (canCreateProject) return
-      setCatalogLoading(true)
-      setCatalogError('')
-      try {
-        const [projects, myRequests] = await Promise.all([
-          listProjectCatalog(orgId),
-          listMyProjectAccessRequests(orgId),
-        ])
-        if (!mounted) return
-        setCatalog(Array.isArray(projects) ? projects : [])
-        setAccessRequests(Array.isArray(myRequests) ? myRequests : [])
-      } catch (err) {
-        if (!mounted) return
-        setCatalogError(err instanceof Error ? err.message : 'Failed to load project catalog')
-      } finally {
-        if (mounted) setCatalogLoading(false)
-      }
-    }
-    loadCatalog()
-    return () => {
-      mounted = false
-    }
-  }, [orgId, canCreateProject])
-
-  useEffect(() => {
     localStorage.setItem(PROJECT_LIST_VIEW_KEY, view)
   }, [view])
 
@@ -118,14 +96,6 @@ export function ProjectListPage() {
   const filtered = useMemo(() => projects, [projects])
   const isEmpty = projects.length === 0
 
-  const getRestoreLabel = (project) => {
-    if (project.can_restore) return 'Restore'
-    if (!project.restore_available_at) return 'Restore'
-    const restoreAt = new Date(project.restore_available_at).getTime()
-    const mins = Math.max(1, Math.ceil((restoreAt - Date.now()) / 60000))
-    return `Restore in ${mins}m`
-  }
-
   const onRestoreProject = async (project) => {
     setError('')
     setRestoringId(project.id)
@@ -133,15 +103,7 @@ export function ProjectListPage() {
       await restoreProject(orgId, project.id)
       setProjects((prev) =>
         prev.map((item) =>
-          item.id === project.id
-            ? {
-                ...item,
-                status: 'active',
-                status_message: 'Project restored',
-                can_restore: false,
-                restore_available_at: null,
-              }
-            : item,
+          item.id === project.id ? { ...item, status: 'active' } : item,
         ),
       )
     } catch (err) {
@@ -151,14 +113,20 @@ export function ProjectListPage() {
     }
   }
 
-  const onDeleteProject = async (project) => {
-    const confirmed = window.confirm(`Delete project "${project.name}"?`)
-    if (!confirmed) return
+  const openDeleteDialog = (project) => {
+    setDeleteTarget(project)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
     setError('')
-    setDeletingId(project.id)
+    setDeletingId(deleteTarget.id)
     try {
-      await deleteProject(orgId, project.id)
-      setProjects((prev) => prev.filter((item) => item.id !== project.id))
+      await deleteProject(orgId, deleteTarget.id)
+      setProjects((prev) => prev.filter((item) => item.id !== deleteTarget.id))
+      setDeleteDialogOpen(false)
+      setDeleteTarget(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete project')
     } finally {
@@ -169,26 +137,28 @@ export function ProjectListPage() {
   const renderProjectActions = (project) => (
     <DropdownMenu.Root>
       <DropdownMenu.Trigger>
-        <IconButton variant="ghost" size="1" radius="full" aria-label="Options">
+        <IconButton variant="ghost" size="2" color="gray" radius="full" style={{ cursor: 'pointer' }}>
           <DotsVerticalIcon width="16" height="16" />
         </IconButton>
       </DropdownMenu.Trigger>
-      <DropdownMenu.Content>
+      <DropdownMenu.Content align="end">
         {(project.status || '').toLowerCase() === 'paused' ? (
           <DropdownMenu.Item
-            disabled={!project.can_restore || restoringId === project.id}
+            disabled={restoringId === project.id}
             onSelect={() => onRestoreProject(project)}
           >
-            {getRestoreLabel(project)}
+            Restore Project
           </DropdownMenu.Item>
         ) : (
           <>
-            <DropdownMenu.Item>Settings</DropdownMenu.Item>
+            <DropdownMenu.Item onSelect={() => navigate(`/organizations/${orgId}/projects/${project.id}/dashboard/settings`)}>
+              Settings
+            </DropdownMenu.Item>
             <DropdownMenu.Separator />
             <DropdownMenu.Item
               color="red"
               disabled={deletingId === project.id}
-              onSelect={() => onDeleteProject(project)}
+              onSelect={() => openDeleteDialog(project)}
             >
               Delete
             </DropdownMenu.Item>
@@ -199,283 +169,275 @@ export function ProjectListPage() {
   )
 
   return (
-    <Box p="6">
-      <Flex direction="column" gap="6">
-        <Heading size="8">Projects</Heading>
+    <Box p="6" style={{ background: 'var(--color-background)', minHeight: '100vh' }}>
+      <Flex direction="column" gap="5" mx="auto" style={{ maxWidth: 1400 }}>
+        
+        {/* Title Heading */}
+        <Heading size="7" weight="bold" style={{ color: 'var(--gray-12)', letterSpacing: '-0.02em' }}>
+          Projects
+        </Heading>
 
-        <Flex gap="3" align="center" wrap="wrap">
-          <TextField.Root
-            placeholder="Search for a project"
-            size="3"
-            variant="surface"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            style={{ flex: 1, minWidth: 240 }}
-          >
-            <TextField.Slot side="left">
-              <MagnifyingGlassIcon width="18" height="18" />
-            </TextField.Slot>
-          </TextField.Root>
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <IconButton variant="soft" size="3" aria-label="Filter by status">
-                <MixerHorizontalIcon width="18" height="18" />
-              </IconButton>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content>
-              <DropdownMenu.Label>Project status</DropdownMenu.Label>
-              <DropdownMenu.Item onSelect={() => setStatusFilter('all')}>
-                {statusFilter === 'all' ? '✓ ' : ''}All
-              </DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setStatusFilter('active')}>
-                {statusFilter === 'active' ? '✓ ' : ''}Active
-              </DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setStatusFilter('paused')}>
-                {statusFilter === 'paused' ? '✓ ' : ''}Paused
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-          <IconButton
-            variant={view === 'grid' ? 'soft' : 'ghost'}
-            size="3"
-            aria-label="Grid view"
-            onClick={() => setView('grid')}
-          >
-            <ViewGridIcon width="18" height="18" />
-          </IconButton>
-          <IconButton
-            variant={view === 'list' ? 'soft' : 'ghost'}
-            size="3"
-            aria-label="List view"
-            onClick={() => setView('list')}
-          >
-            <ListBulletIcon width="18" height="18" />
-          </IconButton>
-          {canCreateProject ? (
-            <Button size="3" asChild>
-              <Link to={`/organizations/${orgId}/projects/new`}>
-                <PlusIcon width="18" height="18" />
-                New project
-              </Link>
-            </Button>
-          ) : null}
-        </Flex>
-
-        {isLoading ? (
-          <Flex justify="center" p="6">
-            <Spinner />
-          </Flex>
-        ) : null}
-
-        {error ? (
-          <Text size="2" color="red">
-            {error}
-          </Text>
-        ) : null}
-
-        {!isLoading && !error && isEmpty && !canCreateProject ? (
-          <Card variant="surface" size="3">
-            <Flex direction="column" gap="4" p="5">
-              <Heading size="6">Request project access</Heading>
-              <Text size="2" color="gray">
-                You don&apos;t have access to any projects yet. Request access from your organization admin.
-              </Text>
-
-              {catalogLoading ? (
-                <Flex align="center" gap="2">
-                  <Spinner />
-                  <Text size="2" color="gray">
-                    Loading projects...
-                  </Text>
-                </Flex>
-              ) : null}
-              {catalogError ? (
-                <Text size="2" color="red">
-                  {catalogError}
-                </Text>
-              ) : null}
-
-              <Flex direction="column" gap="2">
-                {catalog.map((project) => {
-                  const pending = accessRequests.some((r) => r.project_id === project.id && r.status === 'pending')
-                  return (
-                    <Card key={project.id} variant="surface" size="1">
-                      <Flex align="center" justify="between" gap="3">
-                        <Flex direction="column" gap="0" style={{ minWidth: 0 }}>
-                          <Text size="2" weight="medium" trim="end">
-                            {project.name}
-                          </Text>
-                          <Text size="1" color="gray">
-                            {pending ? 'Request pending' : 'Not a member'}
-                          </Text>
-                        </Flex>
-                        <Button
-                          size="1"
-                          variant={pending ? 'soft' : 'solid'}
-                          disabled={pending || requestingProjectId === project.id}
-                          onClick={async () => {
-                            setCatalogError('')
-                            setRequestingProjectId(project.id)
-                            try {
-                              const created = await requestProjectAccess(orgId, project.id)
-                              setAccessRequests((prev) => {
-                                const next = Array.isArray(prev) ? [...prev] : []
-                                if (created?.id && !next.some((r) => r.id === created.id)) next.unshift(created)
-                                return next
-                              })
-                            } catch (err) {
-                              setCatalogError(err instanceof Error ? err.message : 'Unable to request access')
-                            } finally {
-                              setRequestingProjectId('')
-                            }
-                          }}
-                        >
-                          {requestingProjectId === project.id ? 'Requesting...' : pending ? 'Requested' : 'Request access'}
-                        </Button>
-                      </Flex>
-                    </Card>
-                  )
-                })}
-                {!catalogLoading && !catalogError && catalog.length === 0 ? (
-                  <Text size="2" color="gray">
-                    No projects available.
-                  </Text>
-                ) : null}
-              </Flex>
-            </Flex>
-          </Card>
-        ) : null}
-
-        {!isLoading && !error && isEmpty && canCreateProject ? (
-          <Card
-            variant="surface"
-            size="3"
-            style={{
-              border: '2px dashed var(--gray-6)',
-              background: 'var(--color-panel-translucent)',
-            }}
-          >
-            <Flex
-              direction="column"
-              align="center"
-              justify="center"
-              gap="4"
-              p="8"
-              style={{ minHeight: 320 }}
+        {/* ================= CONTROLS ACTION DOCK ================= */}
+        <Flex justify="between" align="center" wrap="wrap" gap="3">
+          <Flex gap="3" align="center" style={{ flex: 1, minWidth: 0 }}>
+            <TextField.Root
+              placeholder="Search for a project"
+              size="2"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              style={{ width: 280 }}
             >
-              <Box
-                style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 12,
-                  background: 'var(--gray-4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+              <TextField.Slot side="left">
+                <MagnifyingGlassIcon width="16" height="16" color="var(--gray-9)" />
+              </TextField.Slot>
+            </TextField.Root>
+
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Button variant="surface" color="gray" size="2" style={{ cursor: 'pointer' }}>
+                  <Text size="2">Status</Text>
+                  <ChevronDownIcon width="14" height="14" />
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item onSelect={() => setStatusFilter('all')}>All Statuses</DropdownMenu.Item>
+                <DropdownMenu.Item onSelect={() => setStatusFilter('active')}>Active</DropdownMenu.Item>
+                <DropdownMenu.Item onSelect={() => setStatusFilter('paused')}>Paused</DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+
+            <Button variant="surface" color="gray" size="2">
+              <ArrowDownIcon width="14" height="14" />
+              <Text size="2">Sorted by name</Text>
+            </Button>
+          </Flex>
+
+          <Flex align="center" gap="3">
+            <Flex gap="1">
+              <IconButton
+                variant="ghost"
+                color="gray"
+                style={{ opacity: view === 'grid' ? 1 : 0.4, cursor: 'pointer' }}
+                onClick={() => setView('grid')}
               >
-                <PlusIcon width="28" height="28" style={{ opacity: 0.7 }} />
-              </Box>
-              <Flex direction="column" align="center" gap="1">
-                <Heading size="6">Create a project</Heading>
-                <Text size="2" color="gray">
-                  Launch a complete backend built on Postgres.
-                </Text>
-              </Flex>
-              <Button size="3" variant="soft" color="gray" asChild>
-                <Link to={`/organizations/${orgId}/projects/new`}>
-                  <PlusIcon width="18" height="18" />
+                <ViewGridIcon width="18" height="18" />
+              </IconButton>
+              <IconButton
+                variant="ghost"
+                color="gray"
+                style={{ opacity: view === 'list' ? 1 : 0.4, cursor: 'pointer' }}
+                onClick={() => setView('list')}
+              >
+                <ListBulletIcon width="18" height="18" />
+              </IconButton>
+            </Flex>
+
+            {canCreateProject && (
+              <Button size="2"  variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
+                <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
+                  <PlusIcon width="16" height="16" />
                   New project
                 </Link>
               </Button>
-            </Flex>
-          </Card>
-        ) : view === 'grid' ? (
-          <Grid
-            columns={{ initial: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)' }}
-            gap="4"
-          >
-            {filtered.map((project) => (
-              <Card key={project.id} variant="surface" size="3" asChild>
-                <Link
-                  to={`/organizations/${orgId}/projects/${project.id}`}
-                  style={{ textDecoration: 'none', color: 'inherit' }}
-                >
-                  <Flex direction="column" gap="4">
-                    <Flex justify="between" align="start">
-                    <Text size="3" weight="bold" trim="end">
-                      {project.name}
-                    </Text>
-                      <Box onClick={(e) => e.stopPropagation()} style={{ margin: -4 }}>
+            )}
+          </Flex>
+        </Flex>
+
+        {error && (
+          <Text size="2" color="red">
+            {error}
+          </Text>
+        )}
+
+        {/* ================= TWO-COLUMN GRID WORKSPACE ================= */}
+        <Grid columns={{ initial: '1fr', lg: '1fr 360px' }} gap="6" mt="2">
+          
+          {/* LEFT: Projects List Frame */}
+          <Box>
+            {isLoading ? (
+              <Flex justify="center" align="center" p="6" style={{ minHeight: 200 }}>
+                <Spinner size="3" />
+              </Flex>
+            ) : isEmpty ? (
+              <Card variant="surface" style={{ border: '1px dashed var(--gray-6)' }}>
+                <Flex direction="column" align="center" justify="center" gap="4" p="8" style={{ minHeight: 240 }}>
+                  <Heading size="4" color="gray">No projects found</Heading>
+                  <Text size="2" color="gray">Get started by building a deployment cloud project layout.</Text>
+                </Flex>
+              </Card>
+            ) : view === 'grid' ? (
+              <Grid columns={{ initial: '1fr', sm: 'repeat(2, 1fr)' }} gap="4">
+                {filtered.map((project) => (
+                  <Card 
+                    key={project.id} 
+                    variant="surface" 
+                    className="project-card-interactive"
+                    onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
+                    style={{ 
+                      padding: '24px',
+                      border: '1px solid var(--gray-4)',
+                      position: 'relative',
+                    }}
+                  >
+                    <style>{`
+                      .project-card-interactive {
+                        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+                        cursor: pointer;
+                      }
+                      .project-card-interactive:hover {
+                        border-color: var(--accent-8) !important;
+                        box-shadow: 0 4px 12px var(--gray-a3);
+                        transform: translateY(-2px);
+                      }
+                    `}</style>
+                    <Flex direction="column" justify="between" style={{ height: '100%', minHeight: '120px' }}>
+                      <Flex justify="between" align="start">
+                        <Box style={{ minWidth: 0 }}>
+                          <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                            {project.name}
+                          </Heading>
+                          <Text size="2" color="gray" style={{ display: 'block', mt: '4px' }}>
+                            {project.provider} <span style={{ color: 'var(--gray-6)' }}>|</span> {project.region}
+                          </Text>
+                        </Box>
+
+                        <Box 
+                          style={{ position: 'absolute', top: '20px', right: '20px' }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {renderProjectActions(project)}
+                        </Box>
+                      </Flex>
+
+                      <Box mt="4">
+                        <Badge size="1" variant="surface" color="gray">
+                          {project.tier}
+                        </Badge>
+                      </Box>
+                    </Flex>
+                  </Card>
+                ))}
+              </Grid>
+            ) : (
+              <Flex direction="column" gap="2">
+                {filtered.map((project) => (
+                  <Card 
+                    key={project.id} 
+                    variant="surface" 
+                    className="project-card-interactive"
+                    onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
+                    style={{ padding: '16px', border: '1px solid var(--gray-4)', position: 'relative' }}
+                  >
+                    <Flex align="center" justify="between">
+                      <Flex align="center" gap="4" style={{ flex: 1 }}>
+                        <Heading size="3" style={{ color: 'var(--gray-12)' }}>{project.name}</Heading>
+                        <Text size="2" color="gray">{project.provider} • {project.region}</Text>
+                        <Badge size="1" color="gray">{project.tier}</Badge>
+                      </Flex>
+                      <Box onClick={(e) => e.stopPropagation()}>
                         {renderProjectActions(project)}
                       </Box>
                     </Flex>
-                   
-                    <Badge
-                      size="1"
-                      color={(project.status || 'active') === 'paused' ? 'amber' : 'green'}
-                    >
-                      {(project.status || 'active').toUpperCase()}
-                    </Badge>
-                    
+                  </Card>
+                ))}
+              </Flex>
+            )}
+          </Box>
+
+          {/* ================= RIGHT: PLAN USAGE TRACKING MODULE ================= */}
+          <Box>
+            <Card variant="surface" style={{ padding: '24px', border: '1px solid var(--gray-4)' }}>
+              <Flex justify="between" align="start" mb="4">
+                <Box>
+                  <Heading size="3" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                    Free plan usage
+                  </Heading>
+                  <Text size="1" color="gray" style={{ display: 'block', marginTop: '2px' }}>
+                    Current billing cycle
+                  </Text>
+                </Box>
+                
+                <Button size="2"  variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }}>
+                  Upgrade to Pro
+                </Button>
+              </Flex>
+
+              <Flex direction="column" gap="4" mt="5">
+                {/* Metric 1: Egress */}
+                <Box>
+                  <Flex justify="between" align="center" mb="2">
+                    <Text size="1" weight="bold" color="gray">EGRESS</Text>
+                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
+                      <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 5 GB</span>
+                    </Text>
                   </Flex>
-                </Link>
-              </Card>
-            ))}
-          </Grid>
-        ) : (
-          <Flex direction="column" gap="3">
-            {filtered.map((project) => (
-              <Card key={project.id} variant="surface" size="3">
-                <Flex align="center" justify="between" gap="3">
-                  <Box asChild style={{ minWidth: 0, flex: 1 }}>
-                    <Link
-                      to={`/organizations/${orgId}/projects/${project.id}`}
-                      style={{ textDecoration: 'none', color: 'inherit' }}
-                    >
-                      <Flex align="center" gap="3" style={{ minWidth: 0 }}>
-                        <Box
-                          style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: 10,
-                            background: 'var(--gray-4)',
-                            display: 'grid',
-                            placeItems: 'center',
-                            flexShrink: 0,
-                          }}
-                        >
-                          <ViewGridIcon width="16" height="16" />
-                        </Box>
-                        <Flex direction="column" gap="1" style={{ minWidth: 0 }}>
-                          <Text size="3" weight="medium" trim="end">
-                            {project.name}
-                          </Text>
-                          <Flex align="center" gap="2" wrap="wrap">
-                            <Badge
-                              size="1"
-                              color={(project.status || 'active') === 'paused' ? 'amber' : 'green'}
-                            >
-                              {(project.status || 'active').toUpperCase()}
-                            </Badge>
-                            <Text size="1" color="gray">
-                              {project.region || 'Region not set'}
-                            </Text>
-                            <Text size="1" color="gray">
-                              {project.status_message || project.statusMessage || 'Project ready'}
-                            </Text>
-                          </Flex>
-                        </Flex>
-                      </Flex>
-                    </Link>
-                  </Box>
-                  <Box onClick={(e) => e.stopPropagation()}>{renderProjectActions(project)}</Box>
-                </Flex>
-              </Card>
-            ))}
-          </Flex>
-        )}
+                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                </Box>
+
+                {/* Metric 2: Database Size */}
+                <Box>
+                  <Flex justify="between" align="center" mb="2">
+                    <Text size="1" weight="bold" color="gray">DATABASE SIZE</Text>
+                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
+                      <strong>26 MB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 500 MB</span>
+                    </Text>
+                  </Flex>
+                  <Progress value={(26 / 500) * 100} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                </Box>
+
+                {/* Metric 3: MAU */}
+                <Box>
+                  <Flex justify="between" align="center" mb="2">
+                    <Text size="1" weight="bold" color="gray">MONTHLY ACTIVE USERS</Text>
+                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
+                      <strong>0</strong> <span style={{ color: 'var(--gray-8)' }}>/ 50,000</span>
+                    </Text>
+                  </Flex>
+                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                </Box>
+
+                {/* Metric 4: File Storage */}
+                <Box>
+                  <Flex justify="between" align="center" mb="2">
+                    <Text size="1" weight="bold" color="gray">FILE STORAGE</Text>
+                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
+                      <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 1 GB</span>
+                    </Text>
+                  </Flex>
+                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                </Box>
+              </Flex>
+            </Card>
+          </Box>
+        </Grid>
       </Flex>
+
+      {/* Confirmation Modals Area */}
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+          setDeleteDialogOpen(open)
+        }}
+      >
+        <Dialog.Content maxWidth="500px">
+          <Dialog.Title>Delete project</Dialog.Title>
+          <Dialog.Description size="2" mb="3">
+            {deleteTarget?.name
+              ? `Are you sure you want to delete project "${deleteTarget.name}"? This action cannot be undone.`
+              : 'Are you sure you want to delete this project?'}
+          </Dialog.Description>
+
+          <Flex gap="3" mt="4" justify="end">
+            <Button variant="soft" color="gray" onClick={() => setDeleteDialogOpen(false)} disabled={!!deletingId}>
+              Cancel
+            </Button>
+            <Button color="red" onClick={handleConfirmDelete} disabled={!!deletingId}>
+              {deletingId ? 'Deleting...' : 'Delete'}
+            </Button>
+          </Flex>
+        </Dialog.Content>
+      </Dialog.Root>
     </Box>
   )
 }

@@ -13,7 +13,9 @@ import {
   Badge,
   Switch,
   Separator,
+  ScrollArea,
 } from '@radix-ui/themes'
+import { Cpu } from 'lucide-react'
 
 export function ProjectLlmConfigPage() {
   const { projectId } = useParams()
@@ -116,12 +118,29 @@ export function ProjectLlmConfigPage() {
   }
 
   return (
-    <Box p="6">
+    <Box style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      {/* ── Page Header ── */}
+      <Flex
+        align="center" justify="between" px="6"
+        style={{
+          borderBottom: '1px solid var(--gray-4)',
+          background: 'var(--color-panel-solid)',
+          flexShrink: 0,
+          height: 41,
+        }}
+      >
+        <Flex align="center" gap="2">
+          <Cpu size={14} color="var(--gray-9)" />
+          <Text size="2" color="gray">Project</Text>
+          <Text size="2" color="gray">/</Text>
+          <Text size="3" weight="medium">LLM Config</Text>
+        </Flex>
+        <Text size="1" color="gray" style={{ fontSize: 10 }}>Manage model connections</Text>
+      </Flex>
+
+      <ScrollArea style={{ flex: 1 }}>
+      <Box p="6">
       <Flex direction="column" gap="4">
-        <Heading size="6">LLM Config</Heading>
-        <Text size="2" color="gray">
-          Add multiple models, enable/disable any model, and set one active model for runtime.
-        </Text>
         <Grid columns={{ initial: '1', md: '2' }} gap="3">
           <Card size="2" variant="surface">
             <Flex direction="column" gap="3">
@@ -232,7 +251,7 @@ export function ProjectLlmConfigPage() {
                         {item.enabled ? 'ENABLED' : 'DISABLED'}
                       </Badge>
                       {item.is_active && item.enabled ? <Badge color="blue">ACTIVE</Badge> : null}
-                      {item.connected ? <Badge color="green" variant="soft">CONNECTED</Badge> : null}
+                      {item.connected ? <Badge color="blue" variant="soft">CONNECTED</Badge> : null}
                     </Flex>
                     {item.provider === 'custom' ? (
                       <Text size="1" color="gray">
@@ -270,6 +289,8 @@ export function ProjectLlmConfigPage() {
         </Grid>
 
       </Flex>
+      </Box>
+      </ScrollArea>
     </Box>
   )
 }

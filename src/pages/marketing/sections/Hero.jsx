@@ -12,7 +12,7 @@ export function Hero() {
           <div className="md:col-span-7">
             <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-zinc-200/70 bg-white/70 px-4 py-2 text-xs text-zinc-700 dark:border-white/10 dark:bg-white/5 dark:text-white/70">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-300/80" />
+                <span className="h-1.5 w-1.5 rounded-full bg-blue-300/80" />
                 Built for product teams shipping fast
               </div>
             </Reveal>
@@ -33,18 +33,18 @@ export function Hero() {
                   <Link to="/signup">Start Free Trial</Link>
                 </Button>
                 <Button asChild variant="secondary" className="w-full sm:w-auto">
-                  <Link to="/book-demo">Book Demo</Link>
+                  <Link to="/signup">Book Demo</Link>
                 </Button>
               </div>
             </Reveal>
             <Reveal delay={0.2}>
               <div className="mt-8 flex flex-wrap items-center gap-6 text-xs text-zinc-500 dark:text-white/55">
                 <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-cyan-300/80" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-300/80" />
                   Evidence-first answers
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-300/80" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-blue-300/80" />
                   Versioned decision records
                 </div>
                 <div className="flex items-center gap-2">
@@ -63,8 +63,8 @@ export function Hero() {
             >
               <div className="rounded-2xl border border-zinc-200/70 bg-white/75 p-4 dark:border-white/10 dark:bg-black/30">
                 <div className="flex items-center justify-between">
-                  <div className="text-xs font-semibold text-zinc-700 dark:text-white/70">DecisionVault</div>
-                  <div className="rounded-full bg-emerald-500/10 px-2 py-1 text-[11px] text-emerald-700 dark:text-emerald-200">
+                  <div className="text-xs font-semibold text-zinc-700 dark:text-white/70">Kavi AI</div>
+                  <div className="rounded-full bg-blue-500/10 px-2 py-1 text-[11px] text-blue-700 dark:text-blue-200">
                     Live capture
                   </div>
                 </div>
@@ -92,8 +92,8 @@ export function Hero() {
                 </div>
               </div>
 
-              <div className="pointer-events-none absolute -left-8 -top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
-              <div className="pointer-events-none absolute -bottom-10 -right-8 h-28 w-28 rounded-full bg-indigo-400/20 blur-2xl" />
+              <div className="pointer-events-none absolute -left-8 -top-10 h-28 w-28 rounded-full bg-blue-400/20 blur-2xl" />
+              <div className="pointer-events-none absolute -bottom-10 -right-8 h-28 w-28 rounded-full bg-blue-400/20 blur-2xl" />
             </motion.div>
           </div>
         </div>

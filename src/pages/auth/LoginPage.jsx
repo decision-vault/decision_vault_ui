@@ -37,7 +37,7 @@ export function LoginPage() {
         password,
       })
       markAuthenticated(response.access_token)
-      navigate('/organizations')
+      navigate('/dashboard/discovery')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unable to sign in')
     } finally {

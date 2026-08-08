@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { CheckCircle } from 'lucide-react'
 import { Container } from '../components/Container'
 import { Reveal } from '../components/Reveal'
 
@@ -37,11 +38,11 @@ export function ProductPreview() {
                     “Let’s go with Postgres now; we’ll revisit multi-region later.”
                   </div>
                   <div className="mt-3 flex gap-2 text-[11px] text-zinc-500 dark:text-white/50">
-                    <span className="rounded bg-zinc-900/5 px-2 py-1 dark:bg-white/10">✅ decided</span>
+                    <span className="inline-flex items-center gap-1 rounded bg-zinc-900/5 px-2 py-1 dark:bg-white/10"><CheckCircle size={12} /> decided</span>
                     <span className="rounded bg-zinc-900/5 px-2 py-1 dark:bg-white/10">thread link</span>
                   </div>
                 </div>
-                <div className="rounded-xl border border-zinc-200/70 bg-gradient-to-b from-cyan-500/10 to-indigo-500/10 p-4 dark:border-white/10">
+                <div className="rounded-xl border border-zinc-200/70 bg-gradient-to-b from-blue-500/10 to-blue-500/10 p-4 dark:border-white/10">
                   <div className="text-[11px] text-zinc-600 dark:text-white/55">Decision record</div>
                   <div className="mt-2 text-sm font-medium text-zinc-900 dark:text-white">
                     Use PostgreSQL for Stage 1 storage
@@ -83,7 +84,7 @@ export function ProductPreview() {
                     </div>
                     <div className="mt-2 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-white/60">
                       <span className="rounded-full bg-zinc-900/5 px-3 py-1 dark:bg-white/10">{row.tag}</span>
-                      <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-700 dark:text-emerald-200">
+                      <span className="rounded-full bg-blue-500/10 px-3 py-1 text-blue-700 dark:text-blue-200">
                         v2
                       </span>
                       <span className="rounded-full bg-zinc-900/5 px-3 py-1 dark:bg-white/10">2 evidence links</span>

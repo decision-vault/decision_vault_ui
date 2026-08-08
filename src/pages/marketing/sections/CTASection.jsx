@@ -8,7 +8,7 @@ export function CTASection() {
     <section className="pt-16 pb-16 md:pt-24 md:pb-24">
       <Container>
         <Reveal>
-          <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/70 bg-gradient-to-r from-indigo-500/20 via-cyan-500/20 to-emerald-500/20 p-10 shadow-soft dark:border-white/10">
+          <div className="relative overflow-hidden rounded-[28px] border border-zinc-200/70 bg-gradient-to-r from-blue-500/20 via-blue-500/20 to-blue-500/20 p-10 shadow-soft dark:border-white/10">
             <div className="pointer-events-none absolute inset-0 bg-white/30 dark:bg-black/20" />
             <div className="relative">
               <h3 className="text-2xl font-semibold tracking-tight md:text-3xl">
@@ -22,7 +22,7 @@ export function CTASection() {
                   <Link to="/signup">Start Free Trial</Link>
                 </Button>
                 <Button asChild variant="secondary" className="w-full sm:w-auto">
-                  <Link to="/book-demo">Book Demo</Link>
+                  <Link to="/signup">Book Demo</Link>
                 </Button>
               </div>
             </div>

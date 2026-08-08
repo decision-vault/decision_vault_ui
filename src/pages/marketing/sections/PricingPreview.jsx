@@ -48,7 +48,7 @@ export function PricingPreview() {
                 className={[
                   'rounded-2xl border p-6 shadow-soft transition hover:-translate-y-1',
                   p.emphasis
-                    ? 'border-cyan-500/30 bg-gradient-to-b from-cyan-500/15 to-zinc-900/0 hover:shadow-glow dark:to-white/5'
+                    ? 'border-blue-500/30 bg-gradient-to-b from-blue-500/15 to-zinc-900/0 hover:shadow-glow dark:to-white/5'
                     : 'border-zinc-200/70 bg-white/75 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20',
                 ].join(' ')}
               >
@@ -58,7 +58,7 @@ export function PricingPreview() {
                     <div className="mt-1 text-xs text-zinc-500 dark:text-white/55">{p.note}</div>
                   </div>
                   {p.emphasis ? (
-                    <div className="rounded-full bg-cyan-500/10 px-3 py-1 text-[11px] text-cyan-700 dark:text-cyan-100">
+                    <div className="rounded-full bg-blue-500/10 px-3 py-1 text-[11px] text-blue-700 dark:text-blue-100">
                       Most popular
                     </div>
                   ) : null}
@@ -77,7 +77,7 @@ export function PricingPreview() {
                 </ul>
                 <div className="mt-6">
                   <Button asChild variant={p.emphasis ? 'primary' : 'secondary'} className="w-full">
-                    <Link to={p.name === 'Enterprise' ? '/book-demo' : '/signup'}>
+                    <Link to="/signup">
                       {p.name === 'Enterprise' ? 'Contact sales' : 'Start trial'}
                     </Link>
                   </Button>

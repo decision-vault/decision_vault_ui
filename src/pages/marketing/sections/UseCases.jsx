@@ -7,7 +7,7 @@ const cases = [
     title: 'Onboarding',
     desc: 'New engineers get the “why” behind architecture in minutes, with evidence and versions.',
     icon: PersonIcon,
-    tone: 'bg-cyan-500/10 text-cyan-800 dark:bg-cyan-400/10 dark:text-cyan-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     example: '“Why did we choose Postgres?”',
     outcome: 'Cuts ramp time and reduces repeat debates.',
   },
@@ -15,7 +15,7 @@ const cases = [
     title: 'Retrospectives',
     desc: 'Review decisions with context and alternatives, then intentionally publish updated versions.',
     icon: BarChartIcon,
-    tone: 'bg-indigo-500/10 text-indigo-800 dark:bg-indigo-400/10 dark:text-indigo-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     example: '“Which trade-offs changed since v1?”',
     outcome: 'Turns retro notes into durable decisions.',
   },
@@ -31,7 +31,7 @@ const cases = [
     title: 'Leadership & Audits',
     desc: 'Produce evidence-backed reasoning when stakeholders ask how choices were made and approved.',
     icon: ReaderIcon,
-    tone: 'bg-emerald-500/10 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
     example: '“Show decision history for RBAC scope.”',
     outcome: 'Clear accountability without archaeology.',
   },
@@ -46,7 +46,7 @@ export function UseCases() {
             <div>
               <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">Use Cases</h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-white/70 md:text-base">
-                The most common moments teams need decision context. These flows are where DecisionVault earns trust.
+                The most common moments teams need decision context. These flows are where Kavi AI earns trust.
               </p>
             </div>
           </div>

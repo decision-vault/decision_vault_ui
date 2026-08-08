@@ -36,7 +36,7 @@ export function Navbar() {
               </Link>
             </motion.div>
             <Button asChild variant="secondary" className="hidden md:inline-flex">
-              <Link to="/book-demo">Book Demo</Link>
+              <Link to="/signup">Book Demo</Link>
             </Button>
             <Button asChild className="inline-flex">
               <Link to="/signup">Start Free Trial</Link>

@@ -7,19 +7,19 @@ const pillars = [
     title: 'Capture',
     desc: 'Collect decisions where they happen—without adding process overhead.',
     icon: ArchiveIcon,
-    tone: 'bg-emerald-500/10 text-emerald-800 dark:bg-emerald-400/10 dark:text-emerald-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
   },
   {
     title: 'Structure',
     desc: 'Turn messy discussions into clear records: context, alternatives, risks, and outcomes.',
     icon: MixIcon,
-    tone: 'bg-indigo-500/10 text-indigo-800 dark:bg-indigo-400/10 dark:text-indigo-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
   },
   {
     title: 'Retrieve',
     desc: 'Search “Why did we…?” and get evidence-linked answers in seconds.',
     icon: MagnifyingGlassIcon,
-    tone: 'bg-cyan-500/10 text-cyan-800 dark:bg-cyan-400/10 dark:text-cyan-200',
+    tone: 'bg-blue-500/10 text-blue-800 dark:bg-blue-400/10 dark:text-blue-200',
   },
 ]
 
@@ -34,7 +34,7 @@ export function Solution() {
                 Decision history, built like an engineering system
               </h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600 dark:text-white/70 md:text-base">
-                DecisionVault is the evidence-first decision log your team actually uses—because it lives inside your
+                Kavi AI is the evidence-first decision log your team actually uses—because it lives inside your
                 workflow.
               </p>
             </div>

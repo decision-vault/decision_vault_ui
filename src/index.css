@@ -2,7 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 🌟 FIX: Declare Radix UI Theme Variables & System Fonts */
 :root {
+  --default-font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  
+  font-family: var(--default-font-family);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -17,9 +21,12 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* Matches your background profile while letting Radix components sit cleanly on top */
   background: #eef2ff;
+  font-family: var(--default-font-family);
 }
 
+/* Blueprint Grid Effects */
 .dv-grid {
   background-image:
     radial-gradient(circle at 1px 1px, rgba(24, 24, 27, 0.12) 1px, transparent 0);
@@ -57,5 +64,192 @@ html.dark .dv-grid {
 
   .dv-link {
     @apply text-zinc-700 transition hover:text-zinc-950 dark:text-white/70 dark:hover:text-white;
+  }
+}
+
+.local-workspace-page {
+  min-height: 100%;
+  background: var(--color-background);
+  color: var(--gray-12);
+  padding: 16px;
+}
+
+.workspace-topbar {
+  min-height: 68px;
+  border-bottom: 1px solid var(--gray-6);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+
+.workspace-shell {
+  align-items: start;
+}
+
+.workspace-panel {
+  border: 1px solid var(--gray-6);
+  background: var(--color-panel-solid);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.workspace-side,
+.workspace-main,
+.workspace-right {
+  min-width: 0;
+}
+
+.workspace-nav-button {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.workspace-tree,
+.workspace-editor {
+  min-width: 0;
+  border: 1px solid var(--gray-5);
+  border-radius: 8px;
+  padding: 10px;
+  background: var(--gray-1);
+}
+
+.workspace-file-row {
+  all: unset;
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-height: 28px;
+  border-radius: 6px;
+  color: var(--gray-11);
+  cursor: pointer;
+  padding: 0 7px;
+}
+
+.workspace-file-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-file-row:hover,
+.workspace-file-row.active {
+  background: var(--accent-3);
+  color: var(--accent-12);
+}
+
+.workspace-code-editor textarea {
+  min-height: 430px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.workspace-terminal,
+.workspace-diff {
+  width: 100%;
+  min-height: 140px;
+  max-height: 260px;
+  overflow: auto;
+  border-radius: 8px;
+  border: 1px solid var(--gray-6);
+  background: #0d1117;
+  color: #d6e2f0;
+  padding: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.workspace-diff {
+  min-height: 170px;
+  color: #e4f0d0;
+}
+
+.workspace-search-hit {
+  border: 1px solid var(--gray-5);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--gray-2);
+}
+
+@media (max-width: 760px) {
+  .local-workspace-page {
+    padding: 10px;
+  }
+
+  .workspace-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .workspace-code-editor textarea {
+    min-height: 280px;
+  }
+}
+
+.landing-carousel {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d8 transparent;
+}
+
+.landing-page a {
+  text-decoration: none;
+}
+
+.landing-nav-trigger {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.landing-nav-trigger:focus-visible {
+  outline: 2px solid #34d399;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.landing-nav-link,
+.landing-nav-link:visited {
+  color: #18181b;
+}
+
+.landing-nav-link:hover {
+  color: #047857;
+}
+
+
+.landing-carousel::-webkit-scrollbar {
+  height: 8px;
+}
+
+.landing-carousel::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 999px;
+}
+
+.landing-marquee {
+  animation: landing-marquee 42s linear infinite;
+}
+
+.landing-marquee:hover {
+  animation-play-state: paused;
+}
+
+.writing-vertical {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+@keyframes landing-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
   }
 }

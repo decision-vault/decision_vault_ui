@@ -114,7 +114,7 @@ function InfoTab() {
                 minWidth: 4,
                 height: `${(h / 6) * 100}%`,
                 minHeight: 4,
-                background: i % 2 === 0 ? 'var(--green-8)' : 'var(--green-6)',
+                background: i % 2 === 0 ? 'var(--blue-8)' : 'var(--blue-6)',
                 borderRadius: 2,
               }}
             />

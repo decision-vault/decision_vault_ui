@@ -124,7 +124,7 @@ export function Testimonials() {
         </Reveal>
 
         <div className="relative mt-8">
-          <div className="pointer-events-none absolute left-1/2 top-6 hidden h-[260px] w-[560px] -translate-x-1/2 rounded-[32px] bg-gradient-to-r from-indigo-500/15 via-cyan-500/15 to-emerald-500/15 blur-3xl md:block" />
+          <div className="pointer-events-none absolute left-1/2 top-6 hidden h-[260px] w-[560px] -translate-x-1/2 rounded-[32px] bg-gradient-to-r from-blue-500/15 via-blue-500/15 to-blue-500/15 blur-3xl md:block" />
 
           <div className="relative mx-auto max-w-[760px]">
             <div className="pointer-events-none absolute inset-0 -z-10">
@@ -178,13 +178,13 @@ export function Testimonials() {
                     Shuffled testimonials
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-zinc-500 dark:text-white/55">
-                    <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-emerald-800 dark:text-emerald-200">
+                    <span className="rounded-full bg-blue-500/10 px-3 py-1 text-blue-800 dark:text-blue-200">
                       Evidence-first
                     </span>
-                    <span className="rounded-full bg-indigo-500/10 px-3 py-1 text-indigo-800 dark:text-indigo-200">
+                    <span className="rounded-full bg-blue-500/10 px-3 py-1 text-blue-800 dark:text-blue-200">
                       Versioned
                     </span>
-                    <span className="rounded-full bg-cyan-500/10 px-3 py-1 text-cyan-800 dark:text-cyan-200">
+                    <span className="rounded-full bg-blue-500/10 px-3 py-1 text-blue-800 dark:text-blue-200">
                       Searchable
                     </span>
                   </div>

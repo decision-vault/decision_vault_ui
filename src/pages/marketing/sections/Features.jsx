@@ -96,7 +96,7 @@ export function Features() {
             <Reveal key={f.title} delay={idx * 0.06}>
               <div className="group rounded-2xl border border-zinc-200/70 bg-gradient-to-b from-zinc-900/5 to-zinc-900/0 p-6 shadow-soft transition hover:-translate-y-1 hover:shadow-glow dark:border-white/10 dark:from-white/10 dark:to-white/5">
                 <div className="flex items-start gap-4">
-                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white text-cyan-700 dark:border-white/10 dark:bg-black/25 dark:text-cyan-200">
+                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-zinc-200/70 bg-white text-blue-700 dark:border-white/10 dark:bg-black/25 dark:text-blue-200">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                       {f.icon}
                     </svg>

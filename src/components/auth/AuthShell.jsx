@@ -8,8 +8,6 @@ export function AuthShell({
   children,
   bottom,
   right,
-  topRightHref = '/docs',
-  topRightLabel = 'Documentation',
 }) {
   return (
     <Box style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -67,12 +65,6 @@ export function AuthShell({
           <Box style={{ width: '100%' }}>{right ?? <DefaultTestimonial />}</Box>
         </Flex>
       </Grid>
-
-      <Box style={{ position: 'absolute', top: 24, right: 24 }}>
-        <RadixLink asChild size="2" color="gray">
-          <Link to={topRightHref}>{topRightLabel}</Link>
-        </RadixLink>
-      </Box>
     </Box>
   )
 }
