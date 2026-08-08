@@ -25,7 +25,7 @@ import { GuestRoute, ProtectedRoute } from "../auth/ProtectedRoute";
 import TaskManagementPage from "../pages/tasks/TaskManagementPage";
 import TaskDetailPage from "../pages/tasks/TaskDetailPage";
 import AgentWorkspacePage from "../pages/agents/AgentWorkspacePage";
-import UIBuilderPage from "../pages/agents/uiBuilderPage";
+import UIBuilderPage from "../pages/agents/UIBuilderPage";
 import DocumentManagementPage from "../pages/agents/DocumentManagementPage";
 import AIWorkflowPage from "../pages/dashboard/AIWorkflowPage";
 import TeamPage from "../layouts/project/TeamPage";
