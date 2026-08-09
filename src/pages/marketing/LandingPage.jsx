@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
+import './marketing-dark.css'
 import {
   ArrowRight,
   Bot,
@@ -16,6 +17,7 @@ import {
   LayoutDashboard,
   Layers3,
   Lock,
+  Menu,
   MessageSquareText,
   Search,
   ShieldCheck,
@@ -23,6 +25,7 @@ import {
   Terminal,
   Users,
   Workflow,
+  X,
 } from 'lucide-react'
 import { Logo } from './components/Logo'
 import { Button } from './components/Button'
@@ -322,14 +325,14 @@ function SectionHeader({ eyebrow, title, action }) {
 function MiniDashboard() {
   return (
     <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-[0_24px_80px_rgba(24,24,27,0.08)]">
-      <div className="flex h-10 items-center justify-between border-b border-zinc-200 px-3">
-        <div className="flex items-center gap-2">
+      <div className="flex h-10 items-center justify-between gap-2 border-b border-zinc-200 px-3">
+        <div className="flex shrink-0 items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
           <span className="h-2.5 w-2.5 rounded-full bg-blue-400" />
         </div>
-        <div className="text-[11px] font-medium text-zinc-500">Kavi AI / workspace</div>
-        <div className="h-5 w-14 rounded bg-zinc-100" />
+        <div className="min-w-0 truncate text-[11px] font-medium text-zinc-500">Kavi AI / workspace</div>
+        <div className="h-5 w-14 shrink-0 rounded bg-zinc-100" />
       </div>
       <div className="grid min-h-[360px] grid-cols-1 bg-zinc-50/70 md:grid-cols-[48px_210px_minmax(0,1fr)]">
         <div className="hidden border-r border-zinc-200 bg-white py-4 md:block">
@@ -423,6 +426,7 @@ await task.suggestCommit()`}
 
 export function LandingPage() {
   const [activeMenu, setActiveMenu] = useState(null)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const activeMegaMenu = activeMenu ? megaMenus[activeMenu] : null
 
   return (
@@ -436,7 +440,7 @@ export function LandingPage() {
             }
           }}
         >
-          <div className="mx-auto grid h-14 max-w-[1180px] grid-cols-[220px_minmax(0,1fr)_360px] items-center px-5">
+          <div className="mx-auto grid h-14 max-w-[1180px] grid-cols-[1fr_auto] items-center gap-3 px-4 md:grid-cols-[220px_minmax(0,1fr)_360px] md:px-5">
             <a href="#top" className="flex items-center justify-self-start">
               <Logo size={22} />
             </a>
@@ -490,11 +494,51 @@ export function LandingPage() {
               >
                 Sign in
               </Link>
-              <Button asChild className="rounded-md px-3 py-2 text-sm">
+              <Button asChild className="hidden rounded-md px-3 py-2 text-sm sm:inline-flex">
                 <Link to="/signup">Start your project</Link>
               </Button>
+              <button
+                type="button"
+                aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileOpen}
+                onClick={() => setMobileOpen((open) => !open)}
+                className="rounded-md border border-zinc-200 p-2 text-zinc-700 hover:bg-zinc-50 md:hidden"
+              >
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
             </div>
           </div>
+
+          {mobileOpen && (
+            <div className="border-t border-zinc-200 bg-white px-4 py-4 md:hidden">
+              <nav className="flex flex-col gap-1">
+                {[{ label: 'Product', href: '#product' }, { label: 'Developers', href: '#developers' }, { label: 'Pricing', href: '#pricing' }, { label: 'Docs', href: '#docs' }, { label: 'Blog', href: '#blog' }].map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className="rounded-md px-3 py-2.5 text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+                  >
+                    {item.label}
+                  </a>
+                ))}
+                <Link
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-1 rounded-md border border-zinc-200 px-3 py-2.5 text-center text-sm font-semibold text-zinc-900 hover:bg-zinc-50"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  to="/signup"
+                  onClick={() => setMobileOpen(false)}
+                  className="mt-2 rounded-md bg-blue-600 px-3 py-2.5 text-center text-sm font-semibold text-white hover:bg-blue-700"
+                >
+                  Start your project
+                </Link>
+              </nav>
+            </div>
+          )}
 
           {activeMegaMenu && (
             <motion.div
@@ -732,8 +776,8 @@ export function LandingPage() {
                 <motion.div
                   key={story.company}
                   whileHover={{ scale: index === 0 ? 1 : 1.02 }}
-                  className={`${story.color} min-h-[280px] rounded-lg p-6 text-white ${
-                    index === 0 ? 'md:col-span-1' : 'flex items-start justify-center'
+                  className={`${story.color} min-h-[110px] rounded-lg p-6 text-white md:min-h-[280px] ${
+                    index === 0 ? 'md:col-span-1' : 'flex items-center justify-start md:items-start md:justify-center'
                   }`}
                 >
                   {index === 0 ? (
@@ -799,7 +843,7 @@ export function LandingPage() {
           <h2 className="text-balance text-3xl font-semibold tracking-tight md:text-4xl">
             Build in a weekend, scale with context
           </h2>
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Button asChild className="rounded-md px-4 py-2.5">
               <Link to="/signup">Start your project</Link>
             </Button>
@@ -819,7 +863,7 @@ export function LandingPage() {
       </main>
 
       <footer className="border-t border-zinc-200 bg-zinc-50 py-14">
-        <div className="mx-auto grid max-w-[1180px] gap-10 px-5 md:grid-cols-[1.2fr_repeat(5,1fr)]">
+        <div className="mx-auto grid max-w-[1180px] gap-10 px-5 sm:grid-cols-2 md:grid-cols-[1.2fr_repeat(5,1fr)]">
           <div>
             <Logo size={24} />
             <p className="mt-4 max-w-xs text-sm leading-6 text-zinc-600">

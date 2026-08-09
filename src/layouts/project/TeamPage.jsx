@@ -193,9 +193,9 @@ export default function TeamsPage() {
           backgroundColor: "var(--color-panel-solid)",
         }}
       >
-        <Table.Root variant="surface" style={{ width: "100%" }}>
+        <Table.Root variant="ghost" style={{ width: "100%" }}>
           <Table.Header style={{ backgroundColor: "var(--gray-2)" }}>
-            <Table.Row style={{ borderBottom: "1px solid var(--gray-4)" }}>
+            <Table.Row style={{}}>
               <Table.ColumnHeaderCell
                 style={{
                   fontSize: "11px",
@@ -239,7 +239,6 @@ export default function TeamsPage() {
                 key={member.id}
                 style={{
                   alignItems: "center",
-                  borderBottom: "1px solid var(--gray-4)",
                 }}
               >
                 {/* Member Identity Details Column */}
@@ -280,7 +279,7 @@ export default function TeamsPage() {
                       {member.status === "INVITED" && (
                         <Badge
                           color="orange"
-                          variant="surface"
+                          variant="ghost"
                           style={{
                             fontSize: "10px",
                             padding: "0 6px",

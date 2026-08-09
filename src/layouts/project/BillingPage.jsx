@@ -89,7 +89,7 @@ export default function BillingPage() {
         subtitle="You get an invoice every time you change your plan or when your monthly billing cycle resets."
         rightContent={
           <Box style={{ border: '1px solid var(--gray-4)', borderRadius: '8px', overflow: 'hidden' }}>
-            <Table.Root variant="surface">
+            <Table.Root variant="ghost">
               <Table.Header style={{ backgroundColor: 'var(--gray-2)' }}>
                 <Table.Row>
                   <Table.ColumnHeaderCell style={{ fontSize: '11px', color: 'var(--gray-10)' }}>DATE</Table.ColumnHeaderCell>

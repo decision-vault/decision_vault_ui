@@ -942,7 +942,7 @@ export default function TaskManagementPage() {
                     </Flex>
 
                     {subtaskFormOpen && (
-                      <Card style={{ background: 'var(--gray-2)', border: '1px dashed var(--gray-6)' }}>
+                      <Card variant="ghost" style={{ background: 'var(--gray-2)', border: '1px dashed var(--gray-6)' }}>
                         <Flex direction="column" gap="3">
                           <Box>
                             <Text size="1" weight="medium" color="gray">Title</Text>
@@ -997,7 +997,7 @@ export default function TaskManagementPage() {
                           ))}
                         </Flex>
                       ) : subtasks.length === 0 ? (
-                        <Card style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)' }}>
+                        <Card variant="ghost" style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)', background: 'var(--color-panel-solid)' }}>
                           <Flex direction="column" gap="2" align="center">
                             <Box style={{ color: 'var(--gray-6)' }}>
                               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M9 18V5l12 2v13" /><path d="M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path d="M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /></svg>
@@ -1056,7 +1056,7 @@ export default function TaskManagementPage() {
                   <Flex direction="column" gap="3" mt="4">
                     <ScrollAreaContainer height="260px">
                       {comments.length === 0 ? (
-                        <Card style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)' }}>
+                        <Card variant="ghost" style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)', background: 'var(--color-panel-solid)' }}>
                           <Flex direction="column" gap="2" align="center">
                             <Box style={{ color: 'var(--gray-6)' }}>
                               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></svg>
@@ -1103,7 +1103,7 @@ export default function TaskManagementPage() {
                   <Flex direction="column" gap="3" mt="4">
                     <ScrollAreaContainer height="340px">
                       {activities.length === 0 ? (
-                        <Card style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)' }}>
+                        <Card variant="ghost" style={{ padding: '32px', textAlign: 'center', border: '1px dashed var(--gray-5)', background: 'var(--color-panel-solid)' }}>
                           <Flex direction="column" gap="2" align="center">
                             <Box style={{ color: 'var(--gray-6)' }}>
                               <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M12 8v4l3 3" /><circle cx="12" cy="12" r="10" /></svg>

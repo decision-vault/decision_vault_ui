@@ -24,6 +24,13 @@ body {
   /* Matches your background profile while letting Radix components sit cleanly on top */
   background: #eef2ff;
   font-family: var(--default-font-family);
+  color: var(--gray-12, #18181b);
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+html.dark body {
+  background: #09090b;
+  color: #fafafa;
 }
 
 /* Blueprint Grid Effects */
@@ -217,8 +224,17 @@ html.dark .dv-grid {
   color: #18181b;
 }
 
+html.dark .landing-nav-link,
+html.dark .landing-nav-link:visited {
+  color: #fafafa;
+}
+
 .landing-nav-link:hover {
   color: #047857;
+}
+
+html.dark .landing-nav-link:hover {
+  color: #60a5fa;
 }
 
 
@@ -239,9 +255,11 @@ html.dark .dv-grid {
   animation-play-state: paused;
 }
 
-.writing-vertical {
-  writing-mode: vertical-rl;
-  transform: rotate(180deg);
+@media (min-width: 768px) {
+  .writing-vertical {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+  }
 }
 
 @keyframes landing-marquee {

@@ -73,7 +73,7 @@ function GeneralPanel() {
             </Flex>
             <Text size="2" color="gray">Basic identity and reference information for your org.</Text>
 
-            <Card size="1" mt="3" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" mt="3" style={{ background: 'var(--color-panel-solid)' }}>
               <Box px="1">
                 <FieldRow label="Organization name" hint="Shown across the dashboard.">
                   <TextField.Root
@@ -115,7 +115,7 @@ function GeneralPanel() {
             </Flex>
             <Text size="2" color="gray">Control what data is shared with AI providers.</Text>
 
-            <Card size="1" mt="3" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" mt="3" style={{ background: 'var(--color-panel-solid)' }}>
               <Box px="1" py="2">
                 <RadioGroup.Root value={privacyLevel} onValueChange={setPrivacy}>
                   <Flex direction="column" gap="4" p="3">
@@ -147,7 +147,7 @@ function GeneralPanel() {
               <AlertTriangle size={14} color="var(--red-9)" />
               <Heading size="4" style={{ color: 'var(--red-11)' }}>Danger Zone</Heading>
             </Flex>
-            <Card size="1" style={{ border: '1px solid var(--red-5)', background: 'var(--red-1)' }}>
+            <Card variant="ghost" size="1" style={{ border: '1px solid var(--red-5)', background: 'var(--red-1)' }}>
               <Flex align="center" justify="between" p="4">
                 <Box>
                   <Text size="2" weight="bold" style={{ display: 'block', color: 'var(--red-12)', marginBottom: 3 }}>
@@ -187,7 +187,7 @@ function SecurityPanel() {
             </Flex>
             <Text size="2" color="gray">Manage authentication requirements for your organization.</Text>
 
-            <Card size="1" mt="3" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" mt="3" style={{ background: 'var(--color-panel-solid)' }}>
               <Box px="1">
                 <FieldRow label="Enforce MFA" hint="Require all members to have multi-factor authentication enabled.">
                   <Flex align="center" gap="3">
@@ -247,7 +247,7 @@ function ApiKeysPanel() {
 
           <Flex direction="column" gap="2">
             {keys.map(k => (
-              <Card key={k.id} size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+              <Card key={k.id} size="1" style={{ background: 'var(--color-panel-solid)' }}>
                 <Flex align="center" justify="between" p="3">
                   <Flex align="center" gap="3">
                     <Box style={{ width: 32, height: 32, borderRadius: 8, background: 'var(--accent-3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -298,7 +298,7 @@ function AuditLogsPanel() {
             A record of all security-relevant actions in your organization.
           </Text>
 
-          <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)', overflow: 'hidden' }}>
+          <Card size="1" style={{ background: 'var(--color-panel-solid)', overflow: 'hidden' }}>
             <Flex px="4" py="2" style={{ background: 'var(--gray-2)', borderBottom: '1px solid var(--gray-4)' }}>
               {['Action', 'Performed by', 'Time'].map(h => (
                 <Text key={h} size="1" color="gray" weight="bold"

@@ -59,7 +59,7 @@ function DetailMiniTile({ icon, title, value, badge }) {
 
 function TelemetryCard({ title, value, warnings = 0, errors = 0 }) {
   return (
-    <Card size="2" style={{ borderRadius: '8px', border: '1px solid var(--gray-4)' }}>
+    <Card size="2" style={{ borderRadius: '8px' }}>
       <Flex direction="column" gap="4">
         <Flex justify="between" align="center">
           <Text size="1" weight="bold" style={{ textTransform: 'uppercase', color: 'var(--gray-10)' }}>{title}</Text>
@@ -135,7 +135,7 @@ export function DashboardPage() {
          
 
           {error && (
-            <Card size="2" style={{ borderRadius: 8, border: '1px solid var(--red-6)' }}>
+            <Card variant="ghost" size="2" style={{ borderRadius: 8, border: '1px solid var(--red-6)' }}>
               <Text size="2" color="red">{error}</Text>
             </Card>
           )}

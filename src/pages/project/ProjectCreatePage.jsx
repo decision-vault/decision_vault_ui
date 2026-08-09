@@ -94,7 +94,6 @@ export function ProjectCreatePage() {
           maxWidth: '520px', 
           width: '100%', 
           borderRadius: '20px', 
-          border: '1px solid var(--gray-4)',
           boxShadow: '0 20px 50px rgba(0, 0, 0, 0.08)',
           background: 'var(--color-panel-solid)',
           animation: 'fade-in-up 0.5s ease-out'

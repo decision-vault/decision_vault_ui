@@ -62,7 +62,7 @@ export function UserProfilePage() {
           <Flex direction="column" gap="5">
 
             {/* ── Identity Card ──────────────────────────────────────────── */}
-            <Card size="3" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="3" style={{ background: 'var(--color-panel-solid)' }}>
               <Flex align="center" gap="4" mb="4">
                 <Avatar
                   size="5"
@@ -96,7 +96,7 @@ export function UserProfilePage() {
             </Card>
 
             {/* ── Danger Zone ────────────────────────────────────────────── */}
-            <Card size="2" style={{ border: '1px solid var(--red-5)', background: 'var(--red-1)' }}>
+            <Card variant="ghost" size="2" style={{ border: '1px solid var(--red-5)', background: 'var(--red-1)' }}>
               <Flex align="center" justify="between">
                 <Box>
                   <Text size="2" weight="bold" color="red">Danger Zone</Text>

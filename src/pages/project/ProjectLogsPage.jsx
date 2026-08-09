@@ -38,7 +38,7 @@ export function ProjectLogsPage() {
       {/* ── Body ─────────────────────────────────────────────────────────── */}
       <ScrollArea style={{ flex: 1 }}>
         <Box p="6">
-          <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)', overflow: 'hidden' }}>
+          <Card size="1" style={{ background: 'var(--color-panel-solid)', overflow: 'hidden' }}>
             {/* Log header */}
             <Flex
               align="center" justify="between" px="4" py="2"

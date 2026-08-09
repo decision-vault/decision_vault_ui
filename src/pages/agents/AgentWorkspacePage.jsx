@@ -336,6 +336,135 @@ function LoaderMessage({ text }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   FEATURE EVALUATION (22 SaaS Features) — Interactive Parser
+   ═══════════════════════════════════════════════════════════ */
+
+function parseFeatureEvaluation(content) {
+  const header = content.match(/### Feature (\d+)\/22:\s*(.+)/)
+  if (!header) return null
+
+  const observationMatch = content.match(/\[LLM Observation Stream\]([\s\S]*?)(?:\r?\n---|\r?\n### Implementation Options)/)
+  const observation = observationMatch ? observationMatch[1].trim() : ''
+
+  const options = []
+  const optionLines = content.split('\n')
+  for (let i = 0; i < optionLines.length; i++) {
+    const line = optionLines[i]
+    const m = line.match(/^\[([ xX])\]\s*Option\s*(\d+):\s*(.+?)(?:\s*\[(STRONGLY RECOMMENDED)\])?\s*$/)
+    if (!m) continue
+    let value = ''
+    for (let j = i + 1; j < optionLines.length; j++) {
+      const vm = optionLines[j].match(/└\s*Value:\s*(.+)/)
+      if (vm) { value = vm[1].trim(); break }
+      if (/^\[\s*[ xX]\]\s*Option/.test(optionLines[j])) break
+    }
+    options.push({
+      num: parseInt(m[2], 10),
+      name: m[3].replace(/\*\*/g, '').trim(),
+      recommended: !!m[4],
+      checked: m[1].toLowerCase() === 'x',
+      value,
+    })
+  }
+
+  const footer = content.match(/\*Please select your preferred option\(s\).*\*/)
+  return {
+    featureNumber: header[1],
+    featureName: header[2].trim(),
+    observation,
+    options,
+    footer: footer ? footer[0] : '',
+  }
+}
+
+function getNextFeatureNumber(historyPool = []) {
+  let highest = 0
+  for (const msg of historyPool) {
+    if (msg?.role !== 'assistant') continue
+    const parsed = parseFeatureEvaluation(msg.content)
+    if (parsed) {
+      const n = parseInt(parsed.featureNumber, 10)
+      if (n > highest) highest = n
+    }
+  }
+  return highest + 1
+}
+
+function FeatureEvalCard({ content, onSendSelection, disabled }) {
+  const parsed = React.useMemo(() => parseFeatureEvaluation(content), [content])
+  const [selection, setSelection] = React.useState(() =>
+    parsed ? parsed.options.filter((o) => o.checked).map((o) => o.num) : []
+  )
+
+  if (!parsed) return null
+
+  const toggle = (num) =>
+    setSelection((prev) => prev.includes(num) ? prev.filter((n) => n !== num) : [...prev, num])
+
+  const selectedOptions = parsed.options.filter((o) => selection.includes(o.num))
+  const sendText = selection.length === 0
+    ? `Move to the next feature.`
+    : `Selected for Feature ${parsed.featureNumber}: ${selectedOptions.map((o) => `Option ${o.num} (${o.name})`).join(', ')}`
+
+  return (
+    <div className="feature-eval-card">
+      <div className="md-content" dangerouslySetInnerHTML={{ __html: marked.parse(content.split('### Implementation Options')[0]) }} />
+
+      <div className="feature-options">
+        {parsed.options.map((o) => {
+          const isSelected = selection.includes(o.num)
+          return (
+            <button
+              key={o.num}
+              type="button"
+              className={`feature-option-row ${isSelected ? 'feature-option-row-selected' : ''}`}
+              onClick={() => !disabled && toggle(o.num)}
+              disabled={disabled}
+            >
+              <span className="feature-checkbox">{isSelected ? '✓' : ''}</span>
+              <span className="feature-option-body">
+                <span className="feature-option-name">
+                  Option {o.num}: {o.name}
+                  {o.recommended && <span className="feature-recommended">STRONGLY RECOMMENDED</span>}
+                </span>
+                {o.value && <span className="feature-option-value">{o.value}</span>}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      <Flex gap="2" mt="2">
+        <Button
+          size="1" variant="soft" color="blue"
+          style={{ cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 6 }}
+          disabled={disabled}
+          onClick={() => !disabled && onSendSelection(sendText)}
+        >
+          {selection.length === 0 ? 'Next Feature' : `Send Selection (${selection.length})`}
+        </Button>
+        {selection.length > 0 && (
+          <Button
+            size="1" variant="ghost" color="gray"
+            style={{ cursor: disabled ? 'not-allowed' : 'pointer', borderRadius: 6 }}
+            disabled={disabled}
+            onClick={() => !disabled && onSendSelection(`Move to the next feature.`)}
+          >
+            Skip
+          </Button>
+        )}
+      </Flex>
+
+      {parsed.footer && (
+        <Text size="1" color="gray" style={{ display: 'block', marginTop: 8, fontStyle: 'italic' }}>
+          {parsed.footer}
+        </Text>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════ */
 
@@ -358,6 +487,7 @@ export default function AgentWorkspacePage() {
   const fileInputRef = useRef(null)
 
   const [isProcessing, setIsProcessing] = useState(false)
+  const [submittedFeatureEvals, setSubmittedFeatureEvals] = useState([])
   const [activeDocumentId, setActiveDocumentId] = useState(null)
   const [isLoadingPage, setIsLoadingPage] = useState(true)
   const [activeSegment, setActiveSegment] = useState('doc')
@@ -530,7 +660,7 @@ export default function AgentWorkspacePage() {
             localStorage.setItem('active_prd_doc_id', docId)
             updateUrlParam(docId)
             setIsSetupState(false)
-            setShowDocumentSplitPane(true)
+            setShowDocumentSplitPane(inputMode === 'plan')
 
             if (projectId) {
               try {
@@ -853,7 +983,8 @@ export default function AgentWorkspacePage() {
         const token = await AgentWorkspaceService.processInteractiveChatStep({
           workspace_id: selectedWorkspaceId, product_name: productName,
           messages: [nextMsg], target_audience: targetAudience, tech_stack_focus: techStackFocus,
-          document_id: activeDocumentId, project_id: projectId, mode: 'chat'
+          document_id: activeDocumentId, project_id: projectId, mode: 'chat',
+          current_feature: getNextFeatureNumber(completeHistoryPool)
         })
         setActiveDocumentId(token.document_id)
         localStorage.setItem('active_prd_doc_id', token.document_id)
@@ -880,9 +1011,39 @@ export default function AgentWorkspacePage() {
       const token = await AgentWorkspaceService.processInteractiveChatStep({
         workspace_id: selectedWorkspaceId, product_name: productName,
         messages: fullPool, target_audience: targetAudience, tech_stack_focus: techStackFocus,
-        document_id: activeDocumentId, project_id: projectId, mode: inputMode
+        document_id: activeDocumentId, project_id: projectId, mode: inputMode,
+        current_feature: inputMode === 'chat' ? getNextFeatureNumber(fullPool) : undefined
       })
       startStatusPollingLoop(token.job_id, [...chatMessages, nextMsg], inputMode)
+    } catch { setIsProcessing(false) }
+  }
+
+  const handleFeatureSelectionSend = async (selectionText, submittedMsgKey) => {
+    if (!selectionText.trim() || isProcessing) return
+    setIsProcessing(true)
+    setActiveSegment('process')
+    if (submittedMsgKey) setSubmittedFeatureEvals(prev => [...prev, submittedMsgKey])
+
+    const parsedCard = submittedMsgKey ? parseFeatureEvaluation(submittedMsgKey) : null
+    const nextFeature = parsedCard
+      ? (parseInt(parsedCard.featureNumber, 10) || 0) + 1
+      : getNextFeatureNumber(completeHistoryPool)
+
+    const nextMsg = { role: 'user', content: selectionText }
+    const fullPool = [...completeHistoryPool, nextMsg]
+    setChatMessages(prev => [...prev, nextMsg])
+    setCompleteHistoryPool(fullPool)
+    setUserInputText('')
+    setLiveExplainabilityText("Recording feature selections...")
+
+    try {
+      const token = await AgentWorkspaceService.processInteractiveChatStep({
+        workspace_id: selectedWorkspaceId, product_name: productName,
+        messages: fullPool, target_audience: targetAudience, tech_stack_focus: techStackFocus,
+        document_id: activeDocumentId, project_id: projectId, mode: 'chat',
+        current_feature: nextFeature
+      })
+      startStatusPollingLoop(token.job_id, [...chatMessages, nextMsg], 'chat')
     } catch { setIsProcessing(false) }
   }
 
@@ -1090,7 +1251,22 @@ export default function AgentWorkspacePage() {
                     <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>Clara AI</Text>
                   </div>
                 </div>
-                <ModeToggle mode={inputMode} onChange={setInputMode} />
+                <Flex align="center" gap="2">
+                  <IconButton
+                    size="1"
+                    variant={showDocumentSplitPane ? 'soft' : 'ghost'}
+                    color={showDocumentSplitPane ? 'blue' : 'gray'}
+                    onClick={() => setShowDocumentSplitPane(v => !v)}
+                    title={showDocumentSplitPane ? 'Close workspace panel' : 'Open workspace panel'}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="18" height="18" x="3" y="3" rx="2" />
+                      <path d="M15 3v18" />
+                    </svg>
+                  </IconButton>
+                  <ModeToggle mode={inputMode} onChange={setInputMode} />
+                </Flex>
               </div>
 
               {/* Chat Messages */}
@@ -1124,7 +1300,15 @@ export default function AgentWorkspacePage() {
                         <div className={msg.role === 'user' ? 'chat-bubble-content-user' : 'chat-bubble-content-ai'}>
                           {msg.role === 'user'
                             ? <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
-                            : <div className="md-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                            : parseFeatureEvaluation(msg.content) ? (
+                              <FeatureEvalCard
+                                content={msg.content}
+                                disabled={isProcessing || submittedFeatureEvals.includes(msg.content)}
+                                onSendSelection={(text) => handleFeatureSelectionSend(text, msg.content)}
+                              />
+                            ) : (
+                              <div className="md-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                            )
                           }
                           {msg.hasChangeSummaryCard && (
                             <div className={`change-summary-card ${isLastAI ? 'change-summary-card-active' : 'change-summary-card-idle'}`}>
@@ -1234,6 +1418,15 @@ export default function AgentWorkspacePage() {
               {/* Chat Input Dock */}
               <div className="chat-input-dock">
                 <div className="chat-input-wrapper">
+                  <IconButton
+                    className="chat-input-action"
+                    onClick={() => document.getElementById('chat-file-uploader')?.click()}
+                    disabled={isProcessing}
+                    style={{ background: 'transparent' }}
+                  >
+                    <IconPaperclip />
+                  </IconButton>
+                  <input type="file" id="chat-file-uploader" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.[0]) alert(`File "${e.target.files[0].name}" attached.`) }} />
                   <TextField.Root
                     variant="soft" size="3"
                     placeholder={isListening ? "Listening..." : isProcessing ? "Clara is thinking..." : inputMode === 'chat' ? "Describe your project idea or use case..." : "Define specifications..."}
@@ -1241,26 +1434,20 @@ export default function AgentWorkspacePage() {
                     onChange={(e) => setUserInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
                     disabled={isProcessing}
-                    style={{ paddingLeft: 40, paddingRight: 80, borderRadius: 14, height: 48, fontSize: 14 }}
+                    style={{ flex: 1, minWidth: 0, border: 'none', background: 'transparent', boxShadow: 'none', fontSize: 14, height: 40 }}
                   />
                   <IconButton
-                    onClick={() => document.getElementById('chat-file-uploader')?.click()}
-                    disabled={isProcessing}
-                    style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-9)', cursor: 'pointer', background: 'transparent', zIndex: 5 }}
-                  >
-                    <IconPaperclip />
-                  </IconButton>
-                  <input type="file" id="chat-file-uploader" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.[0]) alert(`File "${e.target.files[0].name}" attached.`) }} />
-                  <IconButton
+                    className="chat-input-action"
                     onClick={handleToggleVoiceDictation} disabled={isProcessing}
-                    style={{ position: 'absolute', right: 44, top: '50%', transform: 'translateY(-50%)', color: isListening ? 'var(--red-9)' : 'var(--gray-9)', cursor: 'pointer', background: 'transparent', zIndex: 5 }}
+                    style={{ color: isListening ? 'var(--red-9)' : 'var(--gray-9)', background: 'transparent' }}
                   >
                     {isListening ? <IconMicActive /> : <IconMic />}
                   </IconButton>
                   <IconButton
+                    className="chat-input-action"
                     onClick={handleSendChatMessage}
                     disabled={isProcessing || !userInputText.trim()}
-                    style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--blue-9)', cursor: 'pointer', background: 'transparent', zIndex: 5 }}
+                    style={{ color: 'var(--blue-9)', background: 'transparent' }}
                   >
                     <IconSend />
                   </IconButton>
@@ -1271,13 +1458,6 @@ export default function AgentWorkspacePage() {
             {/* ─── Right Panel ─── */}
             {showDocumentSplitPane && (
               <div className="right-panel" style={{ position: 'relative' }}>
-                {isProcessing && (
-                  <div className="processing-overlay">
-                    <div className="processing-spinner" />
-                    <div className="processing-text">Clara is working on it</div>
-                    <div className="processing-subtext">Analyzing requirements and generating content...</div>
-                  </div>
-                )}
                 <div className="panel-header" padding="4">
                   <Flex align="center" gap="1">
                     <Bot size={14} color="var(--blue-9)" />

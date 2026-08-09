@@ -26,15 +26,37 @@ const IconMinimize  = () => <svg width="13" height="13" viewBox="0 0 24 24" fill
 
 /* ─── Element Renderer ────────────────────────────────────────── */
 const ELEMENTS_MAP = {
-  Box, Card, Flex, Grid, Heading, Text, Button, Separator, Badge,
-  TextField: (p) => <input {...p} style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--gray-5)', borderRadius: '8px', fontSize: '13px', outline: 'none', background: 'var(--color-surface)', color: 'var(--gray-12)', ...p.style }} />,
+  Box,
+  Card: (p) => <Card {...p} style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.06)', ...p.style }} />,
+  Flex,
+  Grid,
+  Heading,
+  Text,
+  Button: ({ children, ...p }) => {
+    const isDefault = !p.color && (!p.variant || p.variant === 'solid')
+    const style = isDefault
+      ? { background: 'linear-gradient(135deg, var(--violet-9), var(--indigo-9))', color: '#fff', boxShadow: '0 4px 14px rgba(124,58,237,0.28)', ...p.style }
+      : p.style
+    return <Button {...p} style={style}>{children}</Button>
+  },
+  Separator,
+  Badge,
+  TextField: (p) => <input {...p} style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--gray-5)', borderRadius: '10px', fontSize: '13px', outline: 'none', background: 'var(--color-surface)', color: 'var(--gray-12)', transition: 'border 0.15s', ...p.style }} />,
+  Switch: (p) => (
+    <Box style={{ display: 'inline-block', width: 34, height: 20, borderRadius: 999, background: p.checked === false ? 'var(--gray-5)' : 'var(--violet-8)', position: 'relative', transition: 'background 0.15s', flexShrink: 0, ...p.style }}>
+      <Box style={{ position: 'absolute', top: 2, left: p.checked === false ? 2 : 16, width: 16, height: 16, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.25)', transition: 'left 0.15s' }} />
+    </Box>
+  ),
+  Avatar: ({ children, ...p }) => (
+    <Box style={{ width: p.size === 2 ? 30 : 24, height: p.size === 2 ? 30 : 24, borderRadius: '50%', background: 'linear-gradient(135deg, var(--violet-6), var(--indigo-6))', color: 'var(--violet-11)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 600, fontSize: p.size === 2 ? 11 : 9, flexShrink: 0, ...p.style }}>{children}</Box>
+  ),
 }
 
 function RenderElement({ node, isWireframe }) {
   if (!node) return null
 
   if (isWireframe) {
-    const wireHeights = { Heading: '22px', Text: '14px', Button: '36px', TextField: '36px', Separator: '2px' }
+    const wireHeights = { Heading: '22px', Text: '14px', Button: '36px', TextField: '36px', Separator: '2px', Switch: '20px', Avatar: '28px' }
     if (wireHeights[node.element]) {
       return <Box style={{ background: 'var(--gray-5)', height: wireHeights[node.element], width: node.element === 'Text' ? '80%' : '100%', borderRadius: '5px', marginBottom: '10px', opacity: 0.6 }} />
     }
@@ -62,6 +84,25 @@ function RenderElement({ node, isWireframe }) {
   )
 }
 
+/* ─── Device chrome bar (traffic lights + route + expand) ─────── */
+function PageChrome({ name, route, onExpand, showExpand }) {
+  return (
+    <Flex align="center" justify="between" px="3" style={{ background: 'var(--gray-1)', borderBottom: '1px solid var(--gray-4)', borderRadius: '14px 14px 0 0', height: 36, flexShrink: 0, gap: '8px' }}>
+      <Flex gap="1" align="center">
+        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--red-8)' }} />
+        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--amber-8)' }} />
+        <Box style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green-8)' }} />
+      </Flex>
+      <Badge size="1" variant="soft" color="gray" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{route || name}</Badge>
+      {showExpand && (
+        <IconButton size="1" variant="ghost" color="gray" onClick={() => onExpand && onExpand()} style={{ cursor: 'pointer', background: 'var(--color-surface)', border: '1px solid var(--gray-4)', borderRadius: '6px', height: 24, width: 24 }}>
+          <IconExpand />
+        </IconButton>
+      )}
+    </Flex>
+  )
+}
+
 /* ─── Page Node (ReactFlow custom node) ──────────────────────── */
 function PageNode({ data, isWireframe, canvasWidth, onExpand }) {
   return (
@@ -70,17 +111,14 @@ function PageNode({ data, isWireframe, canvasWidth, onExpand }) {
       background: isWireframe ? 'var(--gray-2)' : 'var(--color-surface)',
       border: isWireframe ? '1.5px dashed var(--gray-6)' : '1px solid var(--gray-4)',
       borderRadius: '14px',
-      boxShadow: '0 12px 32px rgba(0,0,0,0.06)',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.08)',
       overflow: 'hidden',
-      transition: 'width 0.25s ease, background 0.2s ease',
-      position: 'relative'
+      transition: 'width 0.25s ease',
+      display: 'flex',
+      flexDirection: 'column'
     }}>
-      <Box style={{ position: 'absolute', top: '8px', right: '8px', zIndex: 5 }}>
-        <IconButton size="1" variant="ghost" color="gray" onClick={() => onExpand(data)} style={{ cursor: 'pointer', background: 'var(--color-surface)', border: '1px solid var(--gray-4)', borderRadius: '6px', boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
-          <IconExpand />
-        </IconButton>
-      </Box>
-      <Box p="4" style={{ background: isWireframe ? 'transparent' : 'var(--color-surface)', minHeight: '120px' }}>
+      <PageChrome name={data.name} route={data.route} onExpand={() => onExpand(data)} showExpand />
+      <Box p="4" style={{ background: isWireframe ? 'transparent' : 'linear-gradient(180deg, var(--gray-1), var(--gray-2))', flexGrow: 1 }}>
         {data.content
           ? <RenderElement node={data.content} isWireframe={isWireframe} />
           : <Flex align="center" justify="center" style={{ height: '80px' }}><Text size="1" color="gray">No content defined</Text></Flex>
@@ -98,6 +136,85 @@ function CustomNode({ data }) {
       {data.description && <Text size="1" color="gray" style={{ display: 'block', marginTop: '4px' }}>{data.description}</Text>}
     </Box>
   )
+}
+
+/* ─── JSX Code Generator (deterministic, matches the live preview) ── */
+const JSX_TAG = {
+  Box: 'Box', Card: 'Card', Flex: 'Flex', Grid: 'Grid',
+  Heading: 'Heading', Text: 'Text', Button: 'Button',
+  Separator: 'Separator', Badge: 'Badge', TextField: 'input',
+  Switch: 'Switch', Avatar: 'Avatar',
+}
+
+const INPUT_ATTRS = ['placeholder', 'type', 'style', 'disabled', 'required', 'readOnly', 'maxLength', 'name', 'defaultValue', 'value', 'autoFocus']
+
+function _escapeText(text) {
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\{/g, '&#123;')
+    .replace(/\}/g, '&#125;')
+}
+
+function _serializeProps(element, props) {
+  if (!props) return ''
+  const parts = []
+  for (const [key, value] of Object.entries(props)) {
+    if (value === undefined || value === null) continue
+    if (element === 'TextField' && !INPUT_ATTRS.includes(key)) continue
+    if (key === 'style') {
+      parts.push(`style={${JSON.stringify(value)}}`)
+    } else if (typeof value === 'string') {
+      parts.push(`${key}="${value}"`)
+    } else {
+      parts.push(`${key}={${JSON.stringify(value)}}`)
+    }
+  }
+  return parts.length ? ` ${parts.join(' ')}` : ''
+}
+
+function _renderElementToJsx(node, depth = 0) {
+  if (!node) return ''
+  const pad = '  '.repeat(depth)
+  const padChild = '  '.repeat(depth + 1)
+  const tag = JSX_TAG[node.element] || node.element
+  const attrs = _serializeProps(node.element, node.props)
+
+  if (node.element === 'Avatar') {
+    const fb = String(node.content ?? 'AB').replace(/"/g, '&quot;')
+    return `${pad}<Avatar${attrs} fallback="${fb}" />`
+  }
+
+  if (node.element === 'TextField') return `${pad}<${tag}${attrs} />`
+
+  const hasChildren = Array.isArray(node.children) && node.children.length > 0
+  if (!hasChildren) {
+    if (node.content) return `${pad}<${tag}${attrs}>${_escapeText(node.content)}</${tag}>`
+    return `${pad}<${tag}${attrs} />`
+  }
+
+  const lines = []
+  if (node.content) lines.push(`${padChild}${_escapeText(node.content)}`)
+  node.children.forEach((child) => {
+    lines.push(_renderElementToJsx(child, depth + 1))
+  })
+  return `${pad}<${tag}${attrs}>\n${lines.join('\n')}\n${pad}</${tag}>`
+}
+
+function pageToJsx(page) {
+  if (!page) return '// No page content'
+  const name = (page.name || 'Page')
+    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .split(/\s+/).filter(Boolean)
+    .map((s) => s[0].toUpperCase() + s.slice(1)).join('') || 'Page'
+  const componentName = `${name}Screen`
+  const imports = ['Box', 'Card', 'Flex', 'Grid', 'Heading', 'Text', 'Button', 'Separator', 'Badge', 'Switch', 'Avatar']
+
+  const body = _renderElementToJsx(page.content, 2)
+
+  return `import { ${imports.join(', ')} } from '@radix-ui/themes'\n\n` +
+    `export default function ${componentName}() {\n  return (\n${body}\n  )\n}\n`
 }
 
 /* ─── Empty State ─────────────────────────────────────────────── */
@@ -155,6 +272,8 @@ export default function UIBuilderPage({ externalPages, externalEdges, generation
   const [layoutJson, setLayoutJson]             = useState('{}')
   const [isLoading, setIsLoading]               = useState(true)
   const [pageCount, setPageCount]               = useState(0)
+  const [previewTab, setPreviewTab]             = useState('preview')
+  const [copied, setCopied]                     = useState(false)
 
   const [nodes, setNodes, onNodesChange] = useNodesState([])
   const [edges, setEdges, onEdgesChange] = useEdgesState([])
@@ -249,6 +368,18 @@ export default function UIBuilderPage({ externalPages, externalEdges, generation
 
   const updateBreakpoint = (w, label) => { setCanvasWidth(w); setBreakLabel(label) }
 
+  const generatedCode = useMemo(() => (fullScreenPageData ? pageToJsx(fullScreenPageData) : ''), [fullScreenPageData])
+
+  useEffect(() => { setPreviewTab('preview'); setCopied(false) }, [fullScreenPageData?.id])
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedCode)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {}
+  }
+
   const nodeTypes = useMemo(() => ({
     pageNode: ({ data }) => (
       <PageNode
@@ -268,24 +399,45 @@ export default function UIBuilderPage({ externalPages, externalEdges, generation
   if (fullScreenPageData) {
     return (
       <Box style={{ height: '100vh', width: '100vw', background: 'var(--gray-2)', display: 'flex', flexDirection: 'column', overflow: 'auto', position: 'fixed', top: 0, left: 0, zIndex: 9999 }}>
-        <Flex p="3" justify="between" align="center" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--gray-4)', boxShadow: 'var(--shadow-2)', flexShrink: 0 }}>
+        <Flex p="3" justify="between" align="center" gap="3" style={{ background: 'var(--color-surface)', borderBottom: '1px solid var(--gray-4)', boxShadow: 'var(--shadow-2)', flexShrink: 0 }}>
           <Flex align="center" gap="3">
             <Heading size="4" weight="bold">{fullScreenPageData.name}</Heading>
             {fullScreenPageData.route && <Badge color="blue" size="1" variant="soft">{fullScreenPageData.route}</Badge>}
-            <Badge color="blue" size="1">Live Preview</Badge>
+            <Badge color={previewTab === 'code' ? 'violet' : 'blue'} size="1">{previewTab === 'code' ? 'Generated Code' : 'Live Preview'}</Badge>
           </Flex>
-          <Button size="2" color="gray" variant="surface" onClick={() => setFullScreen(null)} style={{ cursor: 'pointer', gap: '6px' }}>
-            <IconMinimize /> Exit Preview
-          </Button>
+          <Flex align="center" gap="2" style={{ flexWrap: 'wrap' }}>
+            <Flex style={{ background: 'var(--gray-2)', border: '1px solid var(--gray-4)', borderRadius: '8px', padding: '3px', gap: '2px' }}>
+              <Button size="1" variant={previewTab === 'preview' ? 'solid' : 'ghost'} color={previewTab === 'preview' ? 'violet' : 'gray'} onClick={() => setPreviewTab('preview')} style={{ cursor: 'pointer' }}>Preview</Button>
+              <Button size="1" variant={previewTab === 'code' ? 'solid' : 'ghost'} color={previewTab === 'code' ? 'violet' : 'gray'} onClick={() => setPreviewTab('code')} style={{ cursor: 'pointer' }}>Code</Button>
+            </Flex>
+            {previewTab === 'code' && (
+              <Button size="2" color={copied ? 'green' : 'gray'} variant="surface" onClick={handleCopyCode} style={{ cursor: 'pointer' }}>
+                {copied ? 'Copied!' : 'Copy Code'}
+              </Button>
+            )}
+            <Button size="2" color="gray" variant="surface" onClick={() => setFullScreen(null)} style={{ cursor: 'pointer', gap: '6px' }}>
+              <IconMinimize /> Exit
+            </Button>
+          </Flex>
         </Flex>
-        <Flex style={{ flexGrow: 1 }} align="start" justify="center" p="8">
-          <Box style={{ width: '100%', maxWidth: canvasViewportWidth, background: 'var(--color-surface)', borderRadius: '16px', border: '1px solid var(--gray-4)', boxShadow: '0 24px 60px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-            {fullScreenPageData.content
-              ? <RenderElement node={fullScreenPageData.content} isWireframe={false} />
-              : <Flex p="8" align="center" justify="center"><Text color="gray">No content</Text></Flex>
-            }
+
+        {previewTab === 'code' ? (
+          <Box style={{ flexGrow: 1, overflow: 'auto', padding: '24px' }}>
+            <pre style={{ margin: 0, background: 'var(--color-surface)', border: '1px solid var(--gray-4)', borderRadius: '12px', padding: '20px', fontSize: '12.5px', lineHeight: 1.6, color: 'var(--gray-11)', overflow: 'auto', whiteSpace: 'pre', boxShadow: 'var(--shadow-1)' }}>{generatedCode}</pre>
           </Box>
-        </Flex>
+        ) : (
+          <Flex style={{ flexGrow: 1 }} align="start" justify="center" p="8">
+            <Box style={{ width: '100%', maxWidth: canvasViewportWidth, background: 'var(--color-surface)', borderRadius: '16px', border: '1px solid var(--gray-4)', boxShadow: '0 24px 60px rgba(0,0,0,0.10)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <PageChrome name={fullScreenPageData.name} route={fullScreenPageData.route} />
+              <Box p="5" style={{ background: 'linear-gradient(180deg, var(--gray-1), var(--gray-2))' }}>
+                {fullScreenPageData.content
+                  ? <RenderElement node={fullScreenPageData.content} isWireframe={false} />
+                  : <Flex p="8" align="center" justify="center"><Text color="gray">No content</Text></Flex>
+                }
+              </Box>
+            </Box>
+          </Flex>
+        )}
       </Box>
     )
   }

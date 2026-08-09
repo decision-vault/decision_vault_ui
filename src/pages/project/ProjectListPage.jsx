@@ -25,11 +25,31 @@ import {
   ChevronDownIcon,
   ArrowDownIcon,
 } from '@radix-ui/react-icons'
+import { FolderKanban, Rocket, Layers, Code2, Database, ShieldCheck, GitBranch, Sparkles } from 'lucide-react'
 import { deleteProject, listProjects, restoreProject } from '../../services/projectApi'
 import { useAuth } from '../../auth/AuthContext'
 
 const PROJECT_LIST_VIEW_KEY = 'dv_project_list_view'
 const PROJECT_LIST_STATUS_FILTER_KEY = 'dv_project_list_status_filter'
+
+const PROJECT_ICONS = [FolderKanban, Rocket, Code2, Database, ShieldCheck, GitBranch, Sparkles, Layers]
+const PROJECT_TINTS = [
+  { bg: 'rgba(59,130,246,0.12)', fg: '#2563eb', border: 'rgba(59,130,246,0.25)' },
+  { bg: 'rgba(37,99,235,0.12)', fg: '#1d4ed8', border: 'rgba(37,99,235,0.25)' },
+  { bg: 'rgba(96,165,250,0.12)', fg: '#3b82f6', border: 'rgba(96,165,250,0.25)' },
+  { bg: 'rgba(29,78,216,0.12)', fg: '#1e40af', border: 'rgba(29,78,216,0.25)' },
+  { bg: 'rgba(14,116,144,0.14)', fg: '#0369a1', border: 'rgba(14,116,144,0.28)' },
+  { bg: 'rgba(59,130,246,0.08)', fg: '#2563eb', border: 'rgba(59,130,246,0.18)' },
+]
+
+function projectVisual(project) {
+  const seed = project?.name
+    ? Array.from(project.name).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
+    : 0
+  const Icon = PROJECT_ICONS[seed % PROJECT_ICONS.length]
+  const tint = PROJECT_TINTS[seed % PROJECT_TINTS.length]
+  return { Icon, tint }
+}
 
 export function ProjectListPage() {
   const { orgId } = useParams()
@@ -173,9 +193,26 @@ export function ProjectListPage() {
       <Flex direction="column" gap="5" mx="auto" style={{ maxWidth: 1400 }}>
         
         {/* Title Heading */}
-        <Heading size="7" weight="bold" style={{ color: 'var(--gray-12)', letterSpacing: '-0.02em' }}>
-          Projects
-        </Heading>
+        <Flex justify="between" align="center" wrap="wrap" gap="3">
+          <Box>
+            <Heading size="7" weight="bold" style={{ color: 'var(--gray-12)', letterSpacing: '-0.02em' }}>
+              Projects
+            </Heading>
+            <Text size="2" color="gray" mt="1">
+              {projects.length > 0
+                ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'} in this organization`
+                : 'Create and manage your organization projects'}
+            </Text>
+          </Box>
+          {canCreateProject && (
+            <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
+              <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
+                <PlusIcon width="16" height="16" />
+                New project
+              </Link>
+            </Button>
+          )}
+        </Flex>
 
         {/* ================= CONTROLS ACTION DOCK ================= */}
         <Flex justify="between" align="center" wrap="wrap" gap="3">
@@ -231,15 +268,6 @@ export function ProjectListPage() {
                 <ListBulletIcon width="18" height="18" />
               </IconButton>
             </Flex>
-
-            {canCreateProject && (
-              <Button size="2"  variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
-                <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
-                  <PlusIcon width="16" height="16" />
-                  New project
-                </Link>
-              </Button>
-            )}
           </Flex>
         </Flex>
 
@@ -259,74 +287,135 @@ export function ProjectListPage() {
                 <Spinner size="3" />
               </Flex>
             ) : isEmpty ? (
-              <Card variant="surface" style={{ border: '1px dashed var(--gray-6)' }}>
+              <Card variant="ghost" style={{ border: '1px dashed var(--gray-6)', background: 'var(--gray-a2)' }}>
                 <Flex direction="column" align="center" justify="center" gap="4" p="8" style={{ minHeight: 240 }}>
+                  <Box
+                    style={{
+                      width: 56,
+                      height: 56,
+                      borderRadius: 16,
+                      background: 'var(--accent-a3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <FolderKanban size={26} color="var(--accent-9)" />
+                  </Box>
                   <Heading size="4" color="gray">No projects found</Heading>
-                  <Text size="2" color="gray">Get started by building a deployment cloud project layout.</Text>
+                  <Text size="2" color="gray" align="center" style={{ maxWidth: 360 }}>
+                    {search || statusFilter !== 'all'
+                      ? 'Try adjusting your search or status filter.'
+                      : 'Get started by building a deployment cloud project layout.'}
+                  </Text>
+                  {canCreateProject && !search && statusFilter === 'all' && (
+                    <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
+                      <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
+                        <PlusIcon width="16" height="16" />
+                        New project
+                      </Link>
+                    </Button>
+                  )}
                 </Flex>
               </Card>
             ) : view === 'grid' ? (
-              <Grid columns={{ initial: '1fr', sm: 'repeat(2, 1fr)' }} gap="4">
-                {filtered.map((project) => (
-                  <Card 
-                    key={project.id} 
-                    variant="surface" 
+              <Grid columns={{ initial: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }} gap="4">
+                {filtered.map((project) => {
+                  const { Icon, tint } = projectVisual(project)
+                  const isPaused = (project.status || '').toLowerCase() === 'paused'
+                  return (
+                  <Card
+                    key={project.id}
+                    variant="ghost"
                     className="project-card-interactive"
                     onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
-                    style={{ 
-                      padding: '24px',
+                    style={{
+                      padding: '20px',
                       border: '1px solid var(--gray-4)',
                       position: 'relative',
+                      overflow: 'hidden',
+                      background: 'var(--color-panel-solid)',
                     }}
                   >
                     <style>{`
                       .project-card-interactive {
-                        transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+                        transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
                         cursor: pointer;
                       }
                       .project-card-interactive:hover {
-                        border-color: var(--accent-8) !important;
-                        box-shadow: 0 4px 12px var(--gray-a3);
-                        transform: translateY(-2px);
+                        border-color: var(--accent-7) !important;
+                        box-shadow: 0 12px 32px var(--gray-a4);
+                        transform: translateY(-4px);
                       }
                     `}</style>
-                    <Flex direction="column" justify="between" style={{ height: '100%', minHeight: '120px' }}>
-                      <Flex justify="between" align="start">
-                        <Box style={{ minWidth: 0 }}>
-                          <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
-                            {project.name}
-                          </Heading>
-                          <Text size="2" color="gray" style={{ display: 'block', mt: '4px' }}>
-                            {project.provider} <span style={{ color: 'var(--gray-6)' }}>|</span> {project.region}
-                          </Text>
-                        </Box>
 
-                        <Box 
-                          style={{ position: 'absolute', top: '20px', right: '20px' }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {renderProjectActions(project)}
-                        </Box>
-                      </Flex>
-
-                      <Box mt="4">
-                        <Badge size="1" variant="surface" color="gray">
-                          {project.tier}
-                        </Badge>
+                    <Flex justify="between" align="start" gap="3">
+                      <Box
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: 10,
+                          background: tint.bg,
+                          border: `1px solid ${tint.border}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Icon size={18} color={tint.fg} strokeWidth={2} />
+                      </Box>
+                      <Box onClick={(e) => e.stopPropagation()}>
+                        {renderProjectActions(project)}
                       </Box>
                     </Flex>
+
+                    <Box mt="3" style={{ minWidth: 0 }}>
+                      <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)', letterSpacing: '-0.01em' }}>
+                        {project.name}
+                      </Heading>
+                      <Text
+                        size="2"
+                        color="gray"
+                        style={{
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          marginTop: 6,
+                          minHeight: 34,
+                        }}
+                      >
+                        {project.description || 'No description yet.'}
+                      </Text>
+                    </Box>
+
+                    <Flex justify="between" align="center" mt="4">
+                      {isPaused ? (
+                        <Badge size="1" color="amber" variant="soft" highContrast={false}>
+                          Paused
+                        </Badge>
+                      ) : (
+                        <Badge size="1" color="green" variant="soft" highContrast={false}>
+                          Active
+                        </Badge>
+                      )}
+                      <Badge size="1" variant="soft" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11 }}>
+                        {project.tier}
+                      </Badge>
+                    </Flex>
                   </Card>
-                ))}
+                )})}
               </Grid>
             ) : (
               <Flex direction="column" gap="2">
                 {filtered.map((project) => (
                   <Card 
                     key={project.id} 
-                    variant="surface" 
+                    variant="ghost"
                     className="project-card-interactive"
                     onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
-                    style={{ padding: '16px', border: '1px solid var(--gray-4)', position: 'relative' }}
+                    style={{ padding: '16px', border: '1px solid var(--gray-4)', position: 'relative', background: 'var(--color-panel-solid)' }}
                   >
                     <Flex align="center" justify="between">
                       <Flex align="center" gap="4" style={{ flex: 1 }}>
@@ -346,8 +435,20 @@ export function ProjectListPage() {
 
           {/* ================= RIGHT: PLAN USAGE TRACKING MODULE ================= */}
           <Box>
-            <Card variant="surface" style={{ padding: '24px', border: '1px solid var(--gray-4)' }}>
-              <Flex justify="between" align="start" mb="4">
+            <Card variant="ghost" style={{ padding: '24px', border: '1px solid var(--gray-4)', position: 'relative', overflow: 'hidden', background: 'var(--color-panel-solid)' }}>
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: -60,
+                  right: -60,
+                  width: 160,
+                  height: 160,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle, var(--accent-a5), transparent 70%)',
+                  pointerEvents: 'none',
+                }}
+              />
+              <Flex justify="between" align="start" mb="4" position="relative">
                 <Box>
                   <Heading size="3" weight="bold" style={{ color: 'var(--gray-12)' }}>
                     Free plan usage
@@ -357,7 +458,7 @@ export function ProjectListPage() {
                   </Text>
                 </Box>
                 
-                <Button size="2"  variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }}>
+                <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }}>
                   Upgrade to Pro
                 </Button>
               </Flex>
@@ -371,7 +472,7 @@ export function ProjectListPage() {
                       <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 5 GB</span>
                     </Text>
                   </Flex>
-                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
                 </Box>
 
                 {/* Metric 2: Database Size */}
@@ -382,7 +483,7 @@ export function ProjectListPage() {
                       <strong>26 MB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 500 MB</span>
                     </Text>
                   </Flex>
-                  <Progress value={(26 / 500) * 100} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                  <Progress value={(26 / 500) * 100} size="1" color="blue" radius="full" style={{ height: '6px' }} />
                 </Box>
 
                 {/* Metric 3: MAU */}
@@ -393,7 +494,7 @@ export function ProjectListPage() {
                       <strong>0</strong> <span style={{ color: 'var(--gray-8)' }}>/ 50,000</span>
                     </Text>
                   </Flex>
-                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
                 </Box>
 
                 {/* Metric 4: File Storage */}
@@ -404,7 +505,7 @@ export function ProjectListPage() {
                       <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 1 GB</span>
                     </Text>
                   </Flex>
-                  <Progress value={0} size="1" color="gray" radius="full" style={{ height: '6px' }} />
+                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
                 </Box>
               </Flex>
             </Card>

@@ -15,7 +15,7 @@ function MetricTile({ title, used, total, unit = '', pct = null, premium = false
 
   return (
     <Card size="1" style={{
-      border: '1px solid var(--gray-4)',
+     
       background: 'var(--color-panel-solid)',
       borderRadius: 'var(--radius-3)',
       padding: '14px 16px',
@@ -252,7 +252,7 @@ export default function UsagePage() {
             subtitle="Amount of data transmitted over all network connections. Billing is based on total uncached egress in GB throughout your billing period."
             docLabel="Documentation"
           >
-            <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
               <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Egress usage</Text>
               <UsageRow label="Included in Free Plan" value="5 GB" />
               <UsageRow label="Used in period"        value="0.00 GB" />
@@ -268,13 +268,13 @@ export default function UsagePage() {
             subtitle="Database size refers to the actual space used by all database objects, as reported by Postgres. Storage size tracks file assets."
             docLabel="Documentation"
           >
-            <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
               <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Database size usage</Text>
               <UsageRow label="Included in Free Plan" value="0.5 GB per project" />
               <UsageRow label="Max database size"     value="24.62 MB" />
             </Card>
 
-            <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
               <Flex justify="between" align="center">
                 <Box>
                   <Text size="2" weight="bold" style={{ display: 'block', color: 'var(--gray-12)', marginBottom: 2 }}>
@@ -300,7 +300,7 @@ export default function UsagePage() {
             subtitle="Users who log in or refresh their token count toward MAU. Billing is based on the sum of distinct users per billing period."
             docLabel="Auth documentation"
           >
-            <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
               <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Monthly Active Users usage</Text>
               <UsageRow label="Included in Free Plan"  value="50,000" />
               <UsageRow label="Cumulative in period"   value="0" />
@@ -326,7 +326,7 @@ export default function UsagePage() {
             subtitle="Every serverless function invocation, independent of response status, is counted toward your monthly quota."
             docLabel="Edge Functions docs"
           >
-            <Card size="1" style={{ border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
               <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Edge Function Invocations usage</Text>
               <UsageRow label="Included in Free Plan" value="500,000" />
               <UsageRow label="Used in period"        value="0" />
