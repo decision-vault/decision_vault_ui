@@ -1,6 +1,6 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'https://decision-vault-2gmw4vff9-kaviyarasumarans-projects.vercel.app'
+  'https://decision-vault-api.vercel.app'
 const NGROK_SKIP_WARNING = import.meta.env.VITE_NGROK_SKIP_BROWSER_WARNING || 'true'
 
 export { API_BASE_URL }
