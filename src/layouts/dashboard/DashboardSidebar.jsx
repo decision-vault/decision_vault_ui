@@ -93,7 +93,6 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
     { key: 'workflow', label: 'Workflow', icon: GitBranch, to: `${projectRoot}/workflow`, match: '/workflow' },
     { key: 'ui-builder', label: 'UI Builder', icon: Layout, to: `${projectRoot}/dashboard/ui-builder`, match: '/dashboard/ui-builder' },
     { key: 'document-management', label: 'Documents', icon: FolderOpen, to: `${projectRoot}/dashboard/document-management`, match: '/dashboard/document-management' },
-    { key: 'team', label: 'Team', icon: Users, to: `${projectRoot}/dashboard/team`, match: '/dashboard/team' },
   ] : []
 
   const isActive = (item) => {
