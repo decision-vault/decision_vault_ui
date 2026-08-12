@@ -1,6 +1,6 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'http://localhost:8000' // Default to localhost if not set
+  'https://decision-vault-api.vercel.app/' // Default to localhost if not set
 const NGROK_SKIP_WARNING = import.meta.env.VITE_NGROK_SKIP_BROWSER_WARNING || 'true'
 
 export { API_BASE_URL }
