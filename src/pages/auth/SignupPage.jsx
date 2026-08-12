@@ -6,25 +6,25 @@ import { EyeClosedIcon, EyeOpenIcon } from '@radix-ui/react-icons'
 import { AuthShell } from '../../components/auth/AuthShell'
 import { signup } from '../../services/authApi'
 import { useAuth } from '../../auth/AuthContext'
+import { useToast } from '../../components/Toast'
 
 export function SignupPage() {
   const navigate = useNavigate()
   const { markAuthenticated } = useAuth()
+  const toast = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [tenantName, setTenantName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const onSubmit = async (event) => {
     event.preventDefault()
-    setError('')
 
     if (password !== confirmPassword) {
-      setError('Password and confirmation must match.')
+      toast.error('Passwords do not match', 'Password and confirmation must match.')
       return
     }
 
@@ -36,9 +36,10 @@ export function SignupPage() {
         password,
       })
       markAuthenticated(response.access_token)
+      toast.success('Account created', 'Welcome to DecisionVault!')
       navigate('/dashboard/discovery')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to create account')
+      toast.error('Sign up failed', err instanceof Error ? err.message : 'Unable to create account')
     } finally {
       setLoading(false)
     }
@@ -128,12 +129,6 @@ export function SignupPage() {
               </TextField.Slot>
             </TextField.Root>
           </Flex>
-
-          {error ? (
-            <Text size="2" color="red">
-              {error}
-            </Text>
-          ) : null}
 
           <Button size="3" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Creating account...' : 'Create account'}

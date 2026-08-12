@@ -10,6 +10,7 @@ import {
   Card,
   Grid,
   Spinner,
+  Badge,
 } from '@radix-ui/themes'
 import { MagnifyingGlassIcon, PlusIcon } from '@radix-ui/react-icons'
 import { listOrganizations } from '../../services/orgApi'
@@ -157,9 +158,15 @@ export function OrgListPage() {
                     <Text size="2" weight="medium" trim="end">
                       {org.name}
                     </Text>
-                    <Text size="1" color="gray">
-                      {org.plan || 'Active'}
-                    </Text>
+                    <Badge
+                      size="1"
+                      variant="soft"
+                      radius="full"
+                      color={org.plan && org.plan !== 'free' ? 'blue' : 'gray'}
+                      style={{ alignSelf: 'flex-start', textTransform: 'capitalize' }}
+                    >
+                      {org.plan || 'free'} plan
+                    </Badge>
                     {org.projectCount != null && (
                       <Text size="1" color="gray">
                         {org.projectCount} project{org.projectCount !== 1 ? 's' : ''}

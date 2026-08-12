@@ -12,11 +12,11 @@ import {
   Component1Icon,
   BarChartIcon,
   CardStackIcon,
+  ChatBubbleIcon,
 } from "@radix-ui/react-icons";
-
 const SIDEBAR_COLLAPSE_KEY = "dv_sidebar_collapsed";
 
-export function ProjectSidebar() {
+export function ProjectSidebar({ onOpenHelp, helpActive }) {
   const { orgId, projectId } = useParams();
   const location = useLocation();
   
@@ -35,6 +35,12 @@ export function ProjectSidebar() {
       path: `/organizations/${orgId}/projects`,
       icon: <LayersIcon width="16" height="16" />,
       active: location.pathname.endsWith("/projects"),
+    },
+    {
+      label: "Settings",
+      path: `/organizations/${orgId}/details`,
+      icon: <GearIcon width="16" height="16" />,
+      active: location.pathname.includes("/details"),
     },
     {
       label: "Team",
@@ -59,13 +65,6 @@ export function ProjectSidebar() {
       path: `/organizations/${orgId}/billing`,
       icon: <CardStackIcon width="16" height="16" />,
       active: location.pathname.includes("/billing"),
-    },
-    {
-      label: "Settings",
-      path: `/organizations/${orgId}/settings`,
-      icon: <GearIcon width="16" height="16" />,
-      active: location.pathname === `/organizations/${orgId}/settings` ||
-              location.pathname.startsWith(`/organizations/${orgId}/settings/`),
     },
   ];
 
@@ -142,6 +141,20 @@ export function ProjectSidebar() {
                 )}
               </Flex>
             );
+
+            if (item.action) {
+              return (
+                <Box key={item.label} onClick={item.action} role="button" style={{ cursor: "pointer" }}>
+                  {isCollapsed ? (
+                    <Tooltip content={item.label} side="right">
+                      {content}
+                    </Tooltip>
+                  ) : (
+                    content
+                  )}
+                </Box>
+              );
+            }
 
             return (
               <Link key={item.label} to={item.path} style={{ textDecoration: "none", color: "inherit" }}>

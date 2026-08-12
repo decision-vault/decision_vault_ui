@@ -22,11 +22,10 @@ import {
 } from "@radix-ui/react-icons";
 import { 
   User, 
-  FlaskConical, 
   FileText, 
-  ChevronRight,
   LogOut,
-  Check
+  Check,
+  Building2
 } from "lucide-react";
 
 import logo from "../../assets/logo.svg";
@@ -38,7 +37,8 @@ import NotificationDrawer from "../../components/org/NotificationDrawer";
 import SearchDialog from "../../components/org/SearchDialog";
 import FeedbackDialog from "../../components/org/FeedbackDialog";
 import { ProjectSidebar } from "./ProjectSidebar";
-import { SettingsSubNav } from "./SettingsSubNav";
+import { useNotificationUnread } from "../../hooks/useNotificationUnread";
+import { AccountProjectsList } from "../../components/org/AccountProjectsList";
 
 const PROJECT_NAMES = {
   "1": "meny-app",
@@ -46,6 +46,7 @@ const PROJECT_NAMES = {
 
 function getContextTitle(pathname, projectId) {
   if (pathname.endsWith("/new")) return "New project";
+  if (pathname.includes("/details")) return "Organization";
   if (pathname.includes("/llm-config")) return "LLM config";
   if (pathname.includes("/settings")) return "Settings";
   if (pathname.includes("/dashboard")) return "Dashboard";
@@ -61,7 +62,6 @@ export function ProjectLayout() {
   
   const orgName = sessionUser?.tenant_name || "Organization";
   const contextTitle = getContextTitle(location.pathname, projectId);
-  const isSettingsPage = location.pathname.endsWith("/settings") || location.pathname.includes("/settings/");
 
   const [orgs, setOrgs] = useState([]);
 
@@ -69,6 +69,8 @@ export function ProjectLayout() {
   const [activeDrawer, setActiveDrawer] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+
+  const { unread: unreadNotifications } = useNotificationUnread(orgId);
 
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [selectedTheme, setSelectedTheme] = useState(themeMode);
@@ -118,7 +120,7 @@ export function ProjectLayout() {
       
       {/* Dynamic Context Overlays */}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} orgId={orgId} />
 
       {/* ================= HEADER ================= */}
       <Flex
@@ -182,6 +184,12 @@ export function ProjectLayout() {
                   );
                 })}
                 <DropdownMenu.Separator />
+                <DropdownMenu.Item onSelect={() => navigate("/organizations")}>
+                  <Flex align="center" gap="2">
+                    <Building2 size={14} color="var(--gray-9)" />
+                    View all organizations
+                  </Flex>
+                </DropdownMenu.Item>
                 <DropdownMenu.Item onSelect={() => navigate("/organizations/new")}>
                   Create organization
                 </DropdownMenu.Item>
@@ -251,17 +259,40 @@ export function ProjectLayout() {
           </IconButton>
 
           {/* Notification Drawer Toggle */}
-          <IconButton
-            variant={activeDrawer === "notification" ? "soft" : "surface"}
-            color={activeDrawer === "notification" ? "gray" : undefined}
-            size="2"
-            radius="full"
-            aria-label="Notifications"
-            onClick={() => toggleDrawer("notification")}
-            style={{ cursor: "pointer" }}
-          >
-            <BellIcon width="18" height="18" />
-          </IconButton>
+          <Box style={{ position: "relative", display: "inline-flex" }}>
+            <IconButton
+              variant={activeDrawer === "notification" ? "soft" : "surface"}
+              color={activeDrawer === "notification" ? "gray" : undefined}
+              size="2"
+              radius="full"
+              aria-label="Notifications"
+              onClick={() => toggleDrawer("notification")}
+              style={{ cursor: "pointer" }}
+            >
+              <BellIcon width="18" height="18" />
+            </IconButton>
+            {unreadNotifications > 0 && (
+              <Box
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: "999px",
+                  backgroundColor: "var(--red-9)",
+                  color: "white",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: "16px",
+                  textAlign: "center",
+                }}
+              >
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </Box>
+            )}
+          </Box>
 
           {/* ================= CUSTOM PROFILE POPUP ================= */}
           <DropdownMenu.Root>
@@ -299,7 +330,10 @@ export function ProjectLayout() {
 
               {/* Navigation Links Group */}
               <Box py="1" style={{ borderBottom: "1px solid var(--gray-4)" }}>
-                <DropdownMenu.Item style={{ padding: "8px 16px", cursor: "pointer" }}>
+                <DropdownMenu.Item
+                  style={{ padding: "8px 16px", cursor: "pointer" }}
+                  onSelect={() => navigate(`/organizations/${orgId}/profile`)}
+                >
                   <Flex align="center" gap="3" width="100%">
                     <User size={16} color="var(--gray-9)" />
                     <Text size="2">Account</Text>
@@ -307,8 +341,8 @@ export function ProjectLayout() {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item style={{ padding: "8px 16px", cursor: "pointer" }}>
                   <Flex align="center" gap="3" width="100%">
-                    <FlaskConical size={16} color="var(--gray-9)" />
-                    <Text size="2">Feature previews</Text>
+                    <User size={16} color="var(--gray-9)" />
+                    <Text size="2">Account</Text>
                   </Flex>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item onSelect={() => void refreshSession()} style={{ padding: "8px 16px", cursor: "pointer" }}>
@@ -318,6 +352,9 @@ export function ProjectLayout() {
                   </Flex>
                 </DropdownMenu.Item>
               </Box>
+
+              {/* Projects Quick List */}
+              <AccountProjectsList orgId={orgId} />
 
               {/* Layout Theme List */}
               <Box px="4" py="2" style={{ borderBottom: "1px solid var(--gray-4)" }}>
@@ -348,19 +385,6 @@ export function ProjectLayout() {
                     </Flex>
                   ))}
                 </Flex>
-              </Box>
-
-              {/* Localization Context */}
-              <Box py="1" style={{ borderBottom: "1px solid var(--gray-4)" }}>
-                <DropdownMenu.Item style={{ padding: "8px 16px", cursor: "pointer" }}>
-                  <Flex align="center" justify="between" width="100%">
-                    <Box>
-                      <Text as="div" size="2" style={{ color: "var(--gray-12)" }}>Timezone</Text>
-                      <Text as="div" size="1" style={{ color: "var(--gray-9)" }}>Auto (Asia/Calcutta)</Text>
-                    </Box>
-                    <ChevronRight size={14} color="var(--gray-8)" />
-                  </Flex>
-                </DropdownMenu.Item>
               </Box>
 
               {/* CTA Upgrade Trigger */}
@@ -397,10 +421,7 @@ export function ProjectLayout() {
       <Flex style={{ flex: 1, overflow: "hidden" }}>
         
         {/*  NAVIGATION INJECTION: Anchored persistent sidebar alongside routing pane */}
-        <ProjectSidebar />
-
-        {/*  SETTINGS SUB-NAV: Render settings sub-navigation dynamically on settings pages */}
-        {isSettingsPage && <SettingsSubNav />}
+        <ProjectSidebar onOpenHelp={() => toggleDrawer("help")} helpActive={activeDrawer === "help"} />
 
         {/* Main Application Content Pane */}
         <Box
@@ -410,7 +431,7 @@ export function ProjectLayout() {
             transition: "all 0.3s ease",
           }}
         >
-          {location.pathname.includes("/mvp/doc") || isSettingsPage ? (
+          {location.pathname.includes("/mvp/doc") ? (
             <Outlet />
           ) : (
             <Container size="4" py="5">
@@ -431,11 +452,11 @@ export function ProjectLayout() {
             }}
           >
             {activeDrawer === "help" && (
-              <HelpDrawer onClose={() => setActiveDrawer(null)} />
+              <HelpDrawer onClose={() => setActiveDrawer(null)} orgId={orgId} />
             )}
 
             {activeDrawer === "notification" && (
-              <NotificationDrawer onClose={() => setActiveDrawer(null)} />
+              <NotificationDrawer onClose={() => setActiveDrawer(null)} orgId={orgId} />
             )}
           </Box>
         )}

@@ -6,9 +6,10 @@ export const DocsManagementService = {
    * Fetches full structural workspace spaces including their internal 
    * nested document arrays to hydrate the sidebar tree layout.
    */
-  getAllWorkspaces: async () => {
+  getAllWorkspaces: async (orgId) => {
     return await apiRequest('/api/docs-management/workspaces', {
-      method: 'GET'
+      method: 'GET',
+      headers: orgId ? { 'x-tenant-id': orgId } : undefined
     })
   },
 

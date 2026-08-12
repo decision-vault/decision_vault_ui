@@ -16,6 +16,7 @@ import { createOrganization } from '../../services/orgApi'
 export function OrgCreatePage() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
+  const [plan, setPlan] = useState('free')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,7 +25,7 @@ export function OrgCreatePage() {
     setError('')
     setIsSubmitting(true)
     try {
-      const created = await createOrganization({ name })
+      const created = await createOrganization({ name, plan })
       navigate(`/organizations/${created.id}/projects`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create organization')
@@ -84,12 +85,12 @@ export function OrgCreatePage() {
               <Text as="label" size="2" weight="medium">
                 Plan
               </Text>
-              <Select.Root defaultValue="free" size="2">
+              <Select.Root value={plan} onValueChange={setPlan} size="2">
                 <Select.Trigger variant="surface" style={{ width: '100%' }} />
                 <Select.Content>
                   <Select.Item value="free">Free - $0/month</Select.Item>
+                  <Select.Item value="lite">Lite - $9/month</Select.Item>
                   <Select.Item value="pro">Pro - $25/month</Select.Item>
-                  <Select.Item value="team">Team - $599/month</Select.Item>
                 </Select.Content>
               </Select.Root>
               <Text size="1" color="gray">

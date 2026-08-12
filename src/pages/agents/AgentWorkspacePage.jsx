@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box, Card, Flex, Heading, Text, TextArea, Grid,
-  IconButton, TextField, Avatar, Button, Separator, DropdownMenu, SegmentedControl
+  IconButton, TextField, Button, Separator, DropdownMenu, SegmentedControl
 } from '@radix-ui/themes'
 import { marked } from 'marked'
 marked.setOptions({ gfm: true, breaks: true })
@@ -10,11 +10,12 @@ import { Bot, ArrowLeft, RotateCcw, Lock, CreditCard, TrendingUp, ClipboardList 
 import { DocsManagementService } from '../../services/docManager'
 import { AgentWorkspaceService } from '../../services/agentApi'
 import { PlannerApi } from '../../services/plannerApi'
+import { KnowledgeApi } from '../../services/knowledgeApi'
 import { getProject } from '../../services/projectApi'
 import { getTasks } from '../../services/taskApi'
 import { CanvasApi } from '../../services/canvasApi'
 import { apiRequest } from '../../services/apiClient'
-import { useAuth } from '../../auth/AuthContext'
+import logo from '../../assets/logo.svg'
 
 import AIWorkflowPage from '../dashboard/AIWorkflowPage'
 import UIBuilderPage from './UIBuilderPage'
@@ -60,12 +61,6 @@ const IconDoc = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
     <path d="M14 2v4a2 2 0 0 0 2 2h4M10 9h4M10 13h4M10 17h2" />
-  </svg>
-)
-
-const IconArrowLeft = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
   </svg>
 )
 
@@ -184,44 +179,110 @@ function SkeletonLoader() {
   )
 }
 
-function ModeToggle({ mode, onChange }) {
-  return (
-    <Flex gap="2" align="center">
-      <Button
-        size="1"
-        variant={mode === 'chat' ? 'solid' : 'ghost'}
-        color="blue"
-        onClick={() => onChange('chat')}
-        className="mode-pill"
-      >
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: 4 }}>
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        Chat
-      </Button>
-      <Button
-        size="1"
-        variant={mode === 'plan' ? 'solid' : 'ghost'}
-        color="blue"
-        onClick={() => onChange('plan')}
-        className="mode-pill"
-      >
-        <IconSparkles /> Plan
-      </Button>
-    </Flex>
-  )
-}
-
 function TypingIndicator() {
   return (
     <div className="typing-indicator">
-      <Avatar size="1" fallback="AI" color="blue" radius="full" />
       <div className="typing-dots">
         <div className="typing-dot" />
         <div className="typing-dot" />
         <div className="typing-dot" />
       </div>
-      <Text size="1" color="gray" italic>Clara is thinking...</Text>
+      <Text size="1" color="gray" italic>kavi ai is thinking...</Text>
+    </div>
+  )
+}
+
+function ExecutionActivityPanel({ steps }) {
+  if (!steps || steps.length === 0) return null
+  const activeCount = steps.filter(s => s.status === 'active').length
+  const doneCount = steps.filter(s => s.status === 'done').length
+  const failedCount = steps.filter(s => s.status === 'failed').length
+  const statusLabel = failedCount > 0
+    ? 'Execution failed'
+    : activeCount > 0
+      ? 'Executing strategy analysis...'
+      : 'Strategy analysis'
+  return (
+    <div className="execution-activity-panel">
+      <div className="execution-activity-head">
+        <Text size="1" weight="bold" style={{ color: 'var(--blue-11)' }}>{statusLabel}</Text>
+        <Text size="1" color="gray">{doneCount}/{steps.length} complete · {activeCount} active</Text>
+      </div>
+      <div className="execution-activity-steps">
+        {steps.map(step => {
+          let icon
+          if (step.status === 'done') {
+            icon = <span className="execution-step-check">✓</span>
+          } else if (step.status === 'failed') {
+            icon = <span className="execution-step-fail">✕</span>
+          } else if (step.status === 'active') {
+            icon = <span className="execution-step-spinner" />
+          } else {
+            icon = <span className="execution-step-dot">○</span>
+          }
+          return (
+            <div key={step.id} className={`execution-step execution-step-${step.status}`}>
+              <span className="execution-step-icon">{icon}</span>
+              <div className="execution-step-body">
+                <Text size="1">{step.title}</Text>
+                {step.status === 'active' && step.progress && (
+                  <Text size="1" color="gray">{step.progress}</Text>
+                )}
+                {step.status === 'failed' && step.message && (
+                  <Text size="1" color="red">{step.message}</Text>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function DocSnapshotCard({ snapshotBody, timestamp, onOpen }) {
+  const snippet = String(snapshotBody || '')
+    .replace(/[#*`_>|-]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 150)
+  let dateLabel = ''
+  if (timestamp) {
+    try { dateLabel = new Date(timestamp).toLocaleString() } catch { dateLabel = '' }
+  }
+  return (
+    <div className="doc-snapshot-card">
+      <div className="doc-snapshot-icon"><IconDoc /></div>
+      <div className="doc-snapshot-body">
+        <Text size="1" weight="bold" style={{ color: 'var(--blue-11)' }}>Generated Document</Text>
+        <Text size="1" color="gray" className="doc-snapshot-snippet">{snippet}</Text>
+        {dateLabel && <Text size="1" color="gray">{dateLabel}</Text>}
+      </div>
+      <Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer', flexShrink: 0 }} onClick={onOpen}>
+        Open
+      </Button>
+    </div>
+  )
+}
+
+function Citations({ citations }) {
+  const [open, setOpen] = React.useState(false)
+  if (!citations || citations.length === 0) return null
+  return (
+    <div className="kb-citations">
+      <button type="button" className="kb-citations-toggle" onClick={() => setOpen(o => !o)}>
+        <IconDoc /> {citations.length} source{citations.length > 1 ? 's' : ''} <span className="kb-citations-caret">{open ? '−' : '+'}</span>
+      </button>
+      {open && (
+        <div className="kb-citations-list">
+          {citations.map((c, i) => (
+            <div key={i} className="kb-citation">
+              <Text size="1" weight="bold" style={{ color: 'var(--blue-11)' }}>[Source {i + 1}] {c.source_title}</Text>
+              {c.chunk_text && <Text size="1" color="gray" style={{ display: 'block', lineHeight: 1.4 }}>{c.chunk_text}</Text>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -291,7 +352,7 @@ function SectionModal({ mode, sectionText, onClose, onSendToAgent }) {
               {messages.map((msg, i) => (
                 <div key={i} className={`modal-msg ${msg.role}`} dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
               ))}
-              {isLoading && <div className="modal-msg assistant loading">Clara is thinking...</div>}
+              {isLoading && <div className="modal-msg assistant loading">kavi ai is thinking...</div>}
             </div>
           )}
         </div>
@@ -471,12 +532,6 @@ function FeatureEvalCard({ content, onSendSelection, disabled }) {
 export default function AgentWorkspacePage() {
   const { orgId, projectId } = useParams()
   const navigate = useNavigate()
-  const { sessionUser } = useAuth()
-
-  const displayEmail = sessionUser?.email || "kaviyarasumaran@gmail.com"
-  const userInitials =
-    displayEmail.split("@")[0].split(/[._-]/).filter(Boolean)
-      .map((p) => p[0]?.toUpperCase()).slice(0, 2).join("") || "U"
 
   const [userInputText, setUserInputText] = useState('')
   const [isSetupState, setIsSetupState] = useState(true)
@@ -485,6 +540,15 @@ export default function AgentWorkspacePage() {
   const [uploadedFile, setUploadedFile] = useState(null)
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef(null)
+  const eventSourceRef = useRef(null)
+  const [executionSteps, setExecutionSteps] = useState([])
+
+  useEffect(() => {
+    return () => {
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+    }
+  }, [])
 
   const [isProcessing, setIsProcessing] = useState(false)
   const [submittedFeatureEvals, setSubmittedFeatureEvals] = useState([])
@@ -516,6 +580,8 @@ export default function AgentWorkspacePage() {
   const [showVersionPanel, setShowVersionPanel] = useState(false)
   const [docViewMode, setDocViewMode] = useState('rendered') // 'rendered' | 'source' | 'diagrams'
   const pageSize = 8
+  const [kbStatus, setKbStatus] = useState(null)
+  const [isKbBusy, setIsKbBusy] = useState(false)
 
   const chatScrollContainerRef = useRef(null)
   const chatBottomRef = useRef(null)
@@ -586,6 +652,33 @@ export default function AgentWorkspacePage() {
     return processed.trim()
   }
 
+  /* Maps a raw chat_history entry to [userMsg, assistantMsg]. Generated
+     documents (is_doc_snapshot or multi-heading bodies) become individual
+     snapshots the user can reopen from the timeline. */
+  const mapChatEntryToMessage = (log) => {
+    if (!log || typeof log.agent_prompt_or_chat !== 'string') return null
+    const splitIdx = log.agent_prompt_or_chat.indexOf(' | Agent: ')
+    if (splitIdx === -1) return null
+    const userPart = log.agent_prompt_or_chat.substring(6, splitIdx)
+    const agentPart = log.agent_prompt_or_chat.substring(splitIdx + 9)
+    const md = cleanAndExtractMarkdown(agentPart)
+    const isDocSnapshot = !!log.is_doc_snapshot || (md.match(/^#{1,3} /gm) || []).length > 3
+    const snapshotBody = (log.saved_snapshot_body && String(log.saved_snapshot_body).length > 40)
+      ? log.saved_snapshot_body
+      : (isDocSnapshot ? md : undefined)
+    return [
+      { role: 'user', content: userPart, timestamp: log.timestamp },
+      {
+        role: 'assistant',
+        content: md || agentPart,
+        isDocSnapshot,
+        snapshotBody,
+        citations: log.citations || [],
+        timestamp: log.timestamp
+      }
+    ]
+  }
+
   /* ─── Fetch Project Name ──────────────────────────────── */
 
   useEffect(() => {
@@ -602,7 +695,7 @@ export default function AgentWorkspacePage() {
       try {
         const searchParams = new URLSearchParams(window.location.search)
         const urlDocId = searchParams.get('docId') || localStorage.getItem('active_prd_doc_id')
-        const directoryPool = await DocsManagementService.getAllWorkspaces()
+        const directoryPool = await DocsManagementService.getAllWorkspaces(orgId)
         if (directoryPool.length > 0) {
           const matchWorkspace = directoryPool.find(ws => String(ws.project_id) === String(projectId))
           const targetWorkspace = matchWorkspace || directoryPool[0]
@@ -623,20 +716,11 @@ export default function AgentWorkspacePage() {
             if (targetDoc.chat_history?.length) {
               targetDoc.chat_history.forEach(log => {
                 if (log.is_plan_card) { return }
-                const splitIdx = log.agent_prompt_or_chat.indexOf(' | Agent: ')
-                if (splitIdx !== -1) {
-                  const userPart = log.agent_prompt_or_chat.substring(6, splitIdx)
-                  const agentPart = log.agent_prompt_or_chat.substring(splitIdx + 9)
-                  const md = cleanAndExtractMarkdown(agentPart)
-                  const isPlanMode = (md.match(/^#{1,3} /gm) || []).length > 3
-                  parsedMessages.push({ role: 'user', content: userPart })
-                  if (isPlanMode) {
-                    parsedMessages.push({ role: 'assistant', content: "PRD document updated and saved.", hasChangeSummaryCard: true, historicalSnapshotSnapshot: md, changeSummaryText: "Specification revision committed." })
-                    if (md) structuralStack.push(md)
-                  } else {
-                    parsedMessages.push({ role: 'assistant', content: md || agentPart, hasChangeSummaryCard: false })
-                  }
-                }
+                const mapped = mapChatEntryToMessage(log)
+                if (!mapped) return
+                parsedMessages.push(...mapped)
+                const snap = mapped[1]
+                if (snap.isDocSnapshot && snap.snapshotBody && !structuralStack.includes(snap.snapshotBody)) structuralStack.push(snap.snapshotBody)
               })
             }
 
@@ -649,9 +733,27 @@ export default function AgentWorkspacePage() {
             }
 
             setCompleteHistoryPool(parsedMessages)
-            const sliceIdx = Math.max(0, parsedMessages.length - pageSize)
-            setChatMessages(parsedMessages.slice(sliceIdx))
-            setHasMoreHistoryToLoad(parsedMessages.length > pageSize)
+            const validLogs = (targetDoc.chat_history || []).filter(log =>
+              !log.is_plan_card
+              && typeof log.agent_prompt_or_chat === 'string'
+              && log.agent_prompt_or_chat.includes(' | Agent: ')
+            )
+            const pageOneLogs = validLogs.slice(Math.max(0, validLogs.length - pageSize))
+            setChatMessages(pageOneLogs.flatMap(log => mapChatEntryToMessage(log)).filter(Boolean))
+            setHasMoreHistoryToLoad(validLogs.length > pageSize)
+
+            // Restore the last agent execution activity (steps + statuses) from the
+            // API response so the activity panel survives a page refresh.
+            if (targetDoc.last_execution?.steps?.length) {
+              setExecutionSteps((targetDoc.last_execution.steps || []).map(s => ({
+                id: s.id,
+                title: s.title,
+                description: s.description || '',
+                status: s.status || 'done',
+                result: s.result || '',
+                progress: s.progress || ''
+              })))
+            }
             setSnapshotHistoryStack(structuralStack)
             setCurrentSnapshotIndex(structuralStack.length - 1)
 
@@ -707,49 +809,115 @@ export default function AgentWorkspacePage() {
     localStorage.setItem('running_compilation_mode', targetMode)
     localStorage.setItem('running_compilation_history', JSON.stringify(workingHistory))
 
+    // Reset the structured-execution activity panel for this new run.
+    setExecutionSteps([])
+
+    const upsertStep = (stepId, patch, titleFallback) => {
+      setExecutionSteps(prev => {
+        if (!stepId) return prev
+        const idx = prev.findIndex(s => s.id === stepId)
+        if (idx === -1) {
+          return [...prev, { id: stepId, title: titleFallback || stepId, description: '', status: 'pending', ...patch }]
+        }
+        const next = [...prev]
+        next[idx] = { ...next[idx], ...patch }
+        return next
+      })
+    }
+
+    let settled = false
+    const finalizeJob = (jobData) => {
+      if (settled) return
+      settled = true
+      clearInterval(interval)
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+      localStorage.removeItem('running_compilation_job_id')
+      localStorage.removeItem('running_compilation_mode')
+      localStorage.removeItem('running_compilation_history')
+
+      const cleanedMd = cleanAndExtractMarkdown(jobData.response)
+      const isDocSnapshot = (cleanedMd.match(/^#{1,3} /gm) || []).length > 3
+      const msg = {
+        role: 'assistant',
+        content: cleanedMd,
+        isDocSnapshot,
+        snapshotBody: isDocSnapshot ? cleanedMd : undefined,
+        citations: jobData.citations || []
+      }
+      setChatMessages([...workingHistory, msg])
+      setCompleteHistoryPool(prev => [...prev, msg])
+      if (isDocSnapshot) {
+        const updatedStack = [...snapshotHistoryStack, cleanedMd]
+        setSnapshotHistoryStack(updatedStack)
+        setCurrentSnapshotIndex(updatedStack.length - 1)
+        pushDocVersion(cleanedMd, 'Generated document')
+        setShowDocumentSplitPane(true)
+        setCanvasRefreshKey(prev => prev + 1)
+      }
+      setIsProcessing(false)
+    }
+    const failJob = () => {
+      if (settled) return
+      settled = true
+      clearInterval(interval)
+      eventSourceRef.current?.close()
+      eventSourceRef.current = null
+      localStorage.removeItem('running_compilation_job_id')
+      localStorage.removeItem('running_compilation_mode')
+      localStorage.removeItem('running_compilation_history')
+      setIsProcessing(false)
+    }
+
+    // Polling watchdog/fallback: still resolves if SSE drops or is unavailable.
     const interval = setInterval(async () => {
       try {
         const jobData = await AgentWorkspaceService.checkBackgroundJobStatus(jobId)
         if (jobData.explainability) setLiveExplainabilityText(jobData.explainability)
 
         if (jobData.status === 'completed') {
-          clearInterval(interval)
-          localStorage.removeItem('running_compilation_job_id')
-          localStorage.removeItem('running_compilation_mode')
-          localStorage.removeItem('running_compilation_history')
-
-          const cleanedMd = cleanAndExtractMarkdown(jobData.response)
-
-          if (targetMode === 'chat') {
-            const msg = { role: 'assistant', content: cleanedMd, hasChangeSummaryCard: false }
-            setChatMessages([...workingHistory, msg])
-            setCompleteHistoryPool(prev => [...prev, msg])
-            setIsProcessing(false)
-          } else {
-            const msg = {
-              role: 'assistant', content: "PRD modifications synchronized.",
-              hasChangeSummaryCard: true, historicalSnapshotSnapshot: cleanedMd,
-              changeSummaryText: jobData.change_summary || "Document sections updated."
-            }
-            setChatMessages([...workingHistory, msg])
-            setCompleteHistoryPool(prev => [...prev, msg])
-            const updatedStack = [...snapshotHistoryStack, cleanedMd]
-            setSnapshotHistoryStack(updatedStack)
-            setCurrentSnapshotIndex(updatedStack.length - 1)
-            pushDocVersion(cleanedMd, 'PRD generated')
-            setShowDocumentSplitPane(true)
-            setIsProcessing(false)
-            setCanvasRefreshKey(prev => prev + 1)
-          }
+          finalizeJob(jobData)
         } else if (jobData.status === 'failed') {
-          clearInterval(interval)
-          localStorage.removeItem('running_compilation_job_id')
-          localStorage.removeItem('running_compilation_mode')
-          localStorage.removeItem('running_compilation_history')
-          setIsProcessing(false)
+          failJob()
         }
       } catch { /* polling error */ }
     }, 1500)
+
+    // Live SSE status stream from the backend.
+    try {
+      eventSourceRef.current = AgentWorkspaceService.streamInteractiveChatJob(jobId, {
+        onStatus: ({ explainability } = {}) => {
+          if (explainability) setLiveExplainabilityText(explainability)
+        },
+        onExecutionStarted: () => {
+          setExecutionSteps([])
+        },
+        onPlan: ({ steps } = {}) => {
+          setExecutionSteps((steps || []).map(s => ({
+            id: s.id, title: s.title, description: s.description || '', status: 'pending'
+          })))
+        },
+        onStepStarted: ({ step_id, title, description } = {}) => {
+          upsertStep(step_id, { status: 'active', title: title || step_id, description: description || '' }, title)
+        },
+        onStepProgress: ({ step_id, status } = {}) => {
+          upsertStep(step_id, { status: 'active', progress: status || '' }, null)
+        },
+        onStepCompleted: ({ step_id, title, result } = {}) => {
+          upsertStep(step_id, { status: 'done', title: title || step_id, result: result || '' }, null)
+        },
+        onStepFailed: ({ step_id, title, message } = {}) => {
+          upsertStep(step_id, { status: 'failed', title: title || step_id, message: message || '' }, null)
+        },
+        onResult: (result) => finalizeJob({ ...result, status: 'completed' }),
+        onError: () => failJob(),
+        onDone: () => {
+          // Server closed the stream; polling watchdog takes over if not settled.
+          eventSourceRef.current?.close()
+          eventSourceRef.current = null
+        }
+      })
+    } catch { /* SSE unavailable — polling only */ }
   }
 
   /* ─── Handlers ──────────────────────────────────────── */
@@ -827,20 +995,23 @@ export default function AgentWorkspacePage() {
     if (el.scrollTop <= 5 && hasMoreHistoryToLoad && !isPaginationLoading && chatMessages.length > 0) {
       setIsPaginationLoading(true)
       const prevHeight = el.scrollHeight
-      setTimeout(() => {
-        const nextPage = currentPageIndex + 1
-        const total = completeHistoryPool.length
-        const startIdx = Math.max(0, total - (nextPage * pageSize))
-        const endIdx = total - (currentPageIndex * pageSize)
-        if (startIdx < endIdx) {
-          const chunk = completeHistoryPool.slice(startIdx, endIdx)
-          setChatMessages(prev => [...chunk, ...prev])
-          setCurrentPageIndex(nextPage)
-          setHasMoreHistoryToLoad(startIdx > 0)
+      const nextPage = currentPageIndex + 1
+      AgentWorkspaceService.getDocumentChatHistory(activeDocumentId, nextPage, pageSize)
+        .then(({ entries, has_more } = {}) => {
+          const chunk = []
+          ;(entries || []).forEach(log => {
+            const mapped = mapChatEntryToMessage(log)
+            if (mapped) chunk.push(...mapped)
+          })
+          if (chunk.length > 0) {
+            setChatMessages(prev => [...chunk, ...prev])
+            setCurrentPageIndex(nextPage)
+          }
+          setHasMoreHistoryToLoad(has_more === true)
           setTimeout(() => { el.scrollTop = el.scrollHeight - prevHeight }, 0)
-        } else setHasMoreHistoryToLoad(false)
-        setIsPaginationLoading(false)
-      }, 300)
+        })
+        .catch(() => setHasMoreHistoryToLoad(false))
+        .finally(() => setIsPaginationLoading(false))
     }
   }
 
@@ -899,14 +1070,34 @@ export default function AgentWorkspacePage() {
         const interval = setInterval(async () => {
           try {
             const status = await AgentWorkspaceService.checkBackgroundJobStatus(token.job_id)
+            if (status.explainability) setLiveExplainabilityText(status.explainability)
             if (status.status === 'completed') { clearInterval(interval); resolve(status) }
             else if (status.status === 'failed') { clearInterval(interval); reject(new Error('failed')) }
           } catch { /* polling */ }
         }, 1200)
+
+        try {
+          const stream = AgentWorkspaceService.streamInteractiveChatJob(token.job_id, {
+            onStatus: ({ explainability } = {}) => {
+              if (explainability) setLiveExplainabilityText(explainability)
+            },
+            onResult: (result) => {
+              clearInterval(interval)
+              stream.close()
+              resolve({ ...result, status: 'completed' })
+            },
+            onError: () => {
+              clearInterval(interval)
+              stream.close()
+              reject(new Error('failed'))
+            },
+            onDone: () => stream.close()
+          })
+        } catch { /* SSE unavailable — polling only */ }
       })
 
       const cleanedMd = cleanAndExtractMarkdown(jobData.response)
-      const msg = { role: 'assistant', content: cleanedMd, hasChangeSummaryCard: false }
+      const msg = { role: 'assistant', content: cleanedMd, hasChangeSummaryCard: false, citations: jobData.citations || [] }
       setChatMessages(prev => [...prev, msg])
       setCompleteHistoryPool(prev => [...prev, msg])
 
@@ -932,73 +1123,34 @@ export default function AgentWorkspacePage() {
     if (!promptToSend.trim() || !selectedWorkspaceId) return
 
     setIsSetupState(false)
-    if (inputMode === 'plan') setShowDocumentSplitPane(true)
     setIsProcessing(true)
     setActiveSegment('process')
     isFirstLoadRef.current = true
     setLiveExplainabilityText("Spawning background thread worker instances...")
 
     const nextMsg = { role: 'user', content: promptToSend }
-    if (inputMode === 'plan') { setChatMessages([nextMsg]); setCompleteHistoryPool([nextMsg]) }
-    else { setChatMessages(prev => [...prev, nextMsg]); setCompleteHistoryPool(prev => [...prev, nextMsg]) }
+    setChatMessages(prev => [...prev, nextMsg])
+    setCompleteHistoryPool(prev => [...prev, nextMsg])
     setUserInputText('')
 
-    if (inputMode === 'plan') {
-      try {
-        setLiveExplainabilityText("Getting agent's approach overview...")
-        const approachToken = await AgentWorkspaceService.processInteractiveChatStep({
-          workspace_id: selectedWorkspaceId, product_name: productName,
-          messages: [{ role: 'user', content: `Before generating the full PRD for "${productName}", briefly summarize your approach. Keep it under 150 words.` }],
-          target_audience: targetAudience, tech_stack_focus: techStackFocus,
-          document_id: activeDocumentId, project_id: projectId, mode: 'chat'
-        })
-        setActiveDocumentId(approachToken.document_id)
-        localStorage.setItem('active_prd_doc_id', approachToken.document_id)
-        updateUrlParam(approachToken.document_id)
-
-        const pollApproach = setInterval(async () => {
-          try {
-            const status = await AgentWorkspaceService.getJobStatus(approachToken.job_id)
-            if (status.status === 'completed' || status.status === 'failed') {
-              clearInterval(pollApproach)
-              const approachMd = cleanAndExtractMarkdown(status.response || '')
-              const approachMsg = { role: 'assistant', content: approachMd || 'Understood. Generating your PRD now...', hasChangeSummaryCard: false }
-              setChatMessages(prev => [...prev, approachMsg])
-              setCompleteHistoryPool(prev => [...prev, approachMsg])
-              setLiveExplainabilityText("Starting full PRD compilation...")
-              try {
-                const prdToken = await AgentWorkspaceService.processInteractiveChatStep({
-                  workspace_id: selectedWorkspaceId, product_name: productName,
-                  messages: [nextMsg], target_audience: targetAudience, tech_stack_focus: techStackFocus,
-                  document_id: approachToken.document_id, project_id: projectId, mode: 'plan'
-                })
-                startStatusPollingLoop(prdToken.job_id, [nextMsg, approachMsg], 'plan')
-              } catch { setIsProcessing(false) }
-            }
-          } catch { clearInterval(pollApproach); setIsProcessing(false) }
-        }, 1500)
-      } catch { setIsProcessing(false) }
-    } else {
-      try {
-        const token = await AgentWorkspaceService.processInteractiveChatStep({
-          workspace_id: selectedWorkspaceId, product_name: productName,
-          messages: [nextMsg], target_audience: targetAudience, tech_stack_focus: techStackFocus,
-          document_id: activeDocumentId, project_id: projectId, mode: 'chat',
-          current_feature: getNextFeatureNumber(completeHistoryPool)
-        })
-        setActiveDocumentId(token.document_id)
-        localStorage.setItem('active_prd_doc_id', token.document_id)
-        updateUrlParam(token.document_id)
-        startStatusPollingLoop(token.job_id, [nextMsg], 'chat')
-      } catch { setIsProcessing(false) }
-    }
+    try {
+      const token = await AgentWorkspaceService.processInteractiveChatStep({
+        workspace_id: selectedWorkspaceId, product_name: productName,
+        messages: [nextMsg], target_audience: targetAudience, tech_stack_focus: techStackFocus,
+        document_id: activeDocumentId, project_id: projectId, mode: 'chat',
+        current_feature: getNextFeatureNumber(completeHistoryPool)
+      }, orgId)
+      setActiveDocumentId(token.document_id)
+      localStorage.setItem('active_prd_doc_id', token.document_id)
+      updateUrlParam(token.document_id)
+      startStatusPollingLoop(token.job_id, [nextMsg], 'chat')
+    } catch { setIsProcessing(false) }
   }
 
   const handleSendChatMessage = async () => {
     if (!userInputText.trim() || isProcessing) return
     setIsProcessing(true)
     setActiveSegment('process')
-    if (inputMode === 'plan') setShowDocumentSplitPane(true)
 
     const nextMsg = { role: 'user', content: userInputText }
     const fullPool = [...completeHistoryPool, nextMsg]
@@ -1011,10 +1163,10 @@ export default function AgentWorkspacePage() {
       const token = await AgentWorkspaceService.processInteractiveChatStep({
         workspace_id: selectedWorkspaceId, product_name: productName,
         messages: fullPool, target_audience: targetAudience, tech_stack_focus: techStackFocus,
-        document_id: activeDocumentId, project_id: projectId, mode: inputMode,
-        current_feature: inputMode === 'chat' ? getNextFeatureNumber(fullPool) : undefined
-      })
-      startStatusPollingLoop(token.job_id, [...chatMessages, nextMsg], inputMode)
+        document_id: activeDocumentId, project_id: projectId, mode: 'chat',
+        current_feature: getNextFeatureNumber(fullPool)
+      }, orgId)
+      startStatusPollingLoop(token.job_id, [...chatMessages, nextMsg], 'chat')
     } catch { setIsProcessing(false) }
   }
 
@@ -1042,7 +1194,7 @@ export default function AgentWorkspacePage() {
         messages: fullPool, target_audience: targetAudience, tech_stack_focus: techStackFocus,
         document_id: activeDocumentId, project_id: projectId, mode: 'chat',
         current_feature: nextFeature
-      })
+      }, orgId)
       startStatusPollingLoop(token.job_id, [...chatMessages, nextMsg], 'chat')
     } catch { setIsProcessing(false) }
   }
@@ -1103,15 +1255,30 @@ export default function AgentWorkspacePage() {
     setActiveSegment('doc')
   }
 
-  const handleResetConsole = () => {
-    localStorage.removeItem('active_prd_doc_id')
-    updateUrlParam(null)
-    setChatMessages([]); setCompleteHistoryPool([])
-    setSnapshotHistoryStack([]); setCurrentSnapshotIndex(-1)
-    setDocVersions([]); setDocVersionIndex(-1)
-    setCurrentPageIndex(1); setHasMoreHistoryToLoad(true)
-    setActiveDocumentId(null); setShowDocumentSplitPane(false)
-    setDocumentPreviewBody(''); setIsSetupState(true)
+  const handleIndexKnowledge = async () => {
+    if (!projectId || isKbBusy) return
+    setIsKbBusy(true)
+    try {
+      const result = await KnowledgeApi.indexProject(orgId, projectId)
+      setKbStatus(prev => ({ ...(prev || {}), indexed_documents: result.indexed_documents, chunks_created: result.chunks_created }))
+    } catch (err) {
+      console.error('Knowledge index failed:', err)
+    } finally {
+      setIsKbBusy(false)
+    }
+  }
+
+  const handleExtractDecisions = async () => {
+    if (!projectId || isKbBusy) return
+    setIsKbBusy(true)
+    try {
+      const result = await KnowledgeApi.extractDecisions(orgId, projectId)
+      setKbStatus(prev => ({ ...(prev || {}), decisions_extracted: result.decisions_extracted }))
+    } catch (err) {
+      console.error('Decision extraction failed:', err)
+    } finally {
+      setIsKbBusy(false)
+    }
   }
 
   const handleOpenSpecificGenerationSnapshot = (snapshotText) => {
@@ -1156,11 +1323,21 @@ export default function AgentWorkspacePage() {
            ═══════════════════════════════════════════════════ */
         <div className="agent-setup">
           <Box width="100%" mb="6">
-            <Flex align="center" gap="3" mb="3">
-              <Box style={{ background: 'linear-gradient(135deg, var(--blue-9), var(--violet-9))', color: 'white', padding: '10px', borderRadius: '14px', display: 'flex' }}>
-                <IconSparkles />
+            <Flex align="center" gap="2" mb="3">
+              <Box
+                asChild
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                }}
+              >
+                <img src={logo} alt="DecisionVault logo" />
               </Box>
-              <Text size="1" weight="bold" color="blue" style={{ textTransform: 'uppercase', letterSpacing: '0.06em' }}>Clara AI</Text>
+              <Text size="4" weight="bold">
+                DecisionVault
+              </Text>
             </Flex>
             <h1 className="agent-setup-heading">How can I assist your<br />PRD creation today?</h1>
             <p className="agent-setup-sub">Choose a template below or describe your product to start generating specifications.</p>
@@ -1184,13 +1361,10 @@ export default function AgentWorkspacePage() {
 
           {/* Unified Input Bar */}
           <div className="unified-input-bar">
-            <div className="input-mode-bar">
-              <ModeToggle mode={inputMode} onChange={setInputMode} />
-            </div>
             <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept=".pdf,.doc,.docx,.txt,.json,.md,.png,.jpg" />
             <textarea
               className="input-textarea"
-              placeholder={inputMode === 'chat' ? "Describe your project idea or use case..." : "Describe your product features, specifications, and constraints..."}
+              placeholder="Describe your product idea, specifications, or ask anything..."
               value={userInputText}
               onChange={(e) => setUserInputText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleStartRefinementLoop())}
@@ -1243,15 +1417,38 @@ export default function AgentWorkspacePage() {
               {/* Chat Header */}
               <div className="chat-header">
                 <div className="chat-header-left">
-                  <IconButton size="1" variant="ghost" color="gray" onClick={handleResetConsole} style={{ cursor: 'pointer' }}>
-                    <IconArrowLeft />
-                  </IconButton>
                   <div className="chat-header-brand">
                     <div className="chat-header-dot" />
-                    <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>Clara AI</Text>
+                    <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>kavi ai</Text>
                   </div>
                 </div>
                 <Flex align="center" gap="2">
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer' }}>
+                        <IconDoc /> Knowledge
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content variant="classic" style={{ zIndex: 50, minWidth: 240 }}>
+                      <DropdownMenu.Item onClick={handleIndexKnowledge} disabled={isKbBusy} style={{ cursor: isKbBusy ? 'wait' : 'pointer' }}>
+                        <Flex align="center" justify="between" gap="2" style={{ width: '100%' }}>
+                          <span>Index project docs</span>
+                          {isKbBusy && <Text size="1" color="gray">…</Text>}
+                        </Flex>
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={handleExtractDecisions} disabled={isKbBusy} style={{ cursor: isKbBusy ? 'wait' : 'pointer' }}>
+                        Extract decision records
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator />
+                      <DropdownMenu.Item disabled>
+                        <Text size="1" color="gray">
+                          {kbStatus
+                            ? `${kbStatus.indexed_documents ?? 0} docs · ${kbStatus.chunks_created ?? 0} chunks${kbStatus.decisions_extracted != null ? ` · ${kbStatus.decisions_extracted} decisions` : ''}`
+                            : 'Not indexed yet — grounded answers need docs in the KB.'}
+                        </Text>
+                      </DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                   <IconButton
                     size="1"
                     variant={showDocumentSplitPane ? 'soft' : 'ghost'}
@@ -1265,7 +1462,6 @@ export default function AgentWorkspacePage() {
                       <path d="M15 3v18" />
                     </svg>
                   </IconButton>
-                  <ModeToggle mode={inputMode} onChange={setInputMode} />
                 </Flex>
               </div>
 
@@ -1288,7 +1484,6 @@ export default function AgentWorkspacePage() {
                     if (msg.is_loader) {
                       return (
                         <div key={index} className="chat-bubble-ai">
-                          <Avatar size="1" fallback="AI" color="blue" radius="full" />
                           <LoaderMessage text={msg.saved_snapshot_body} />
                         </div>
                       )
@@ -1296,7 +1491,6 @@ export default function AgentWorkspacePage() {
 
                     return (
                       <div key={index} className={msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-ai'}>
-                        {msg.role !== 'user' && <Avatar size="1" fallback="AI" color="blue" radius="full" />}
                         <div className={msg.role === 'user' ? 'chat-bubble-content-user' : 'chat-bubble-content-ai'}>
                           {msg.role === 'user'
                             ? <span style={{ whiteSpace: 'pre-wrap' }}>{msg.content}</span>
@@ -1306,111 +1500,27 @@ export default function AgentWorkspacePage() {
                                 disabled={isProcessing || submittedFeatureEvals.includes(msg.content)}
                                 onSendSelection={(text) => handleFeatureSelectionSend(text, msg.content)}
                               />
-                            ) : (
-                              <div className="md-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                            )                             : (
+                              <>
+                                {msg.isDocSnapshot && (
+                                  <DocSnapshotCard
+                                    snapshotBody={msg.snapshotBody}
+                                    timestamp={msg.timestamp}
+                                    onOpen={() => handleOpenSpecificGenerationSnapshot(msg.snapshotBody)}
+                                  />
+                                )}
+                                <div className="md-content" dangerouslySetInnerHTML={{ __html: marked.parse(msg.content) }} />
+                                <Citations citations={msg.citations} />
+                              </>
                             )
                           }
-                          {msg.hasChangeSummaryCard && (
-                            <div className={`change-summary-card ${isLastAI ? 'change-summary-card-active' : 'change-summary-card-idle'}`}>
-                              <Flex direction="column" gap="0">
-                                <Text size="1" weight="bold" color="blue" style={{ borderBottom: '1px solid var(--gray-4)', paddingBottom: 6, marginBottom: 6 }}>
-                                  Generation Complete
-                                </Text>
-
-                                {/* PRD Row */}
-                                <Flex align="center" justify="between" gap="2" style={{ padding: '6px 0' }}>
-                                  <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
-                                    <Box style={{ color: 'var(--blue-10)', display: 'flex', background: 'var(--blue-3)', padding: 5, borderRadius: 6, flexShrink: 0 }}>
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" /></svg>
-                                    </Box>
-                                    <Box style={{ minWidth: 0, flex: 1 }}>
-                                      <Text size="1" weight="bold" display="block">PRD Document</Text>
-                                      <Text size="1" color="gray" display="block" style={{ fontSize: 10 }}>{msg.changeSummaryText || "Generated specifications"}</Text>
-                                    </Box>
-                                  </Flex>
-                                  <Flex gap="1" style={{ flexShrink: 0 }}>
-                                    <Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer', borderRadius: 6 }} onClick={() => { handleOpenSpecificGenerationSnapshot(msg.historicalSnapshotSnapshot); setActiveSegment('doc') }}>Open</Button>
-                                    <Button size="1" variant="soft" color="gray" style={{ cursor: 'pointer', borderRadius: 6, padding: '0 6px' }} onClick={() => handleRegeneratePrd(msg)}>
-                                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
-                                    </Button>
-                                  </Flex>
-                                </Flex>
-
-                                <Separator size="4" style={{ opacity: 0.4 }} />
-
-                                {/* Task Flow Row */}
-                                <Flex align="center" justify="between" gap="2" style={{ padding: '6px 0' }}>
-                                  <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
-                                    <Box style={{ color: 'var(--teal-10)', display: 'flex', background: 'var(--teal-3)', padding: 5, borderRadius: 6, flexShrink: 0 }}>
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect width="8" height="4" x="8" y="2" rx="1" /><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" /><path d="m9 14 2 2 4-4" /></svg>
-                                    </Box>
-                                    <Box style={{ minWidth: 0, flex: 1 }}>
-                                      <Text size="1" weight="bold" display="block">Task Flow</Text>
-                                      <Text size="1" color="gray" display="block" style={{ fontSize: 10 }}>Sprints, epics & tasks</Text>
-                                    </Box>
-                                  </Flex>
-                                  <Flex gap="1" style={{ flexShrink: 0 }}>
-                                    {taskFlowGenerated ? (
-                                      <>
-                                        <Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer', borderRadius: 6 }} onClick={() => setActiveSegment('task-flow')}>Open</Button>
-                                        <Button size="1" variant="soft" color="gray" style={{ cursor: isGeneratingPlan ? 'wait' : 'pointer', borderRadius: 6, padding: '0 6px' }} disabled={isGeneratingPlan} onClick={handleMakeTaskFlow}>
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={isGeneratingPlan ? { animation: 'spin 0.8s linear infinite' } : undefined}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <Button size="1" variant="soft" color="blue" style={{ cursor: isGeneratingPlan ? 'wait' : 'pointer', borderRadius: 6 }} disabled={isGeneratingPlan || !activeDocumentId} onClick={handleMakeTaskFlow}>
-                                        {isGeneratingPlan ? (
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                                        ) : (
-                                          'Generate'
-                                        )}
-                                      </Button>
-                                    )}
-                                  </Flex>
-                                </Flex>
-
-                                <Separator size="4" style={{ opacity: 0.4 }} />
-
-                                {/* UI Builder Row */}
-                                <Flex align="center" justify="between" gap="2" style={{ padding: '6px 0' }}>
-                                  <Flex align="center" gap="2" style={{ minWidth: 0, flex: 1 }}>
-                                    <Box style={{ color: 'var(--violet-10)', display: 'flex', background: 'var(--violet-3)', padding: 5, borderRadius: 6, flexShrink: 0 }}>
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 9h6M9 12h6M9 15h4" /></svg>
-                                    </Box>
-                                    <Box style={{ minWidth: 0, flex: 1 }}>
-                                      <Text size="1" weight="bold" display="block">UI Builder</Text>
-                                      <Text size="1" color="gray" display="block" style={{ fontSize: 10 }}>Wireframes from tasks</Text>
-                                    </Box>
-                                  </Flex>
-                                  <Flex gap="1" style={{ flexShrink: 0 }}>
-                                    {uiGenerated ? (
-                                      <>
-                                        <Button size="1" variant="soft" color="blue" style={{ cursor: 'pointer', borderRadius: 6 }} onClick={() => setActiveSegment('ui-builder')}>Open</Button>
-                                        <Button size="1" variant="soft" color="gray" style={{ cursor: isGeneratingUI ? 'wait' : 'pointer', borderRadius: 6, padding: '0 6px' }} disabled={isGeneratingUI} onClick={handleGenerateUI}>
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={isGeneratingUI ? { animation: 'spin 0.8s linear infinite' } : undefined}><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" /><path d="M16 16h5v5" /></svg>
-                                        </Button>
-                                      </>
-                                    ) : (
-                                      <Button size="1" variant="soft" color="blue" style={{ cursor: isGeneratingUI ? 'wait' : 'pointer', borderRadius: 6 }} disabled={!taskFlowGenerated || isGeneratingUI} onClick={handleGenerateUI}>
-                                        {isGeneratingUI ? (
-                                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 0.8s linear infinite' }}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>
-                                        ) : (
-                                          'Generate'
-                                        )}
-                                      </Button>
-                                    )}
-                                  </Flex>
-                                </Flex>
-                              </Flex>
-                            </div>
-                          )}
                         </div>
-                        {msg.role === 'user' && <Avatar size="1" fallback={userInitials} color="gray" radius="full" />}
                       </div>
                     )
                   })}
 
-                  {isProcessing && <TypingIndicator />}
+                  {executionSteps.length > 0 && <ExecutionActivityPanel steps={executionSteps} />}
+                  {isProcessing && executionSteps.length === 0 && <TypingIndicator />}
                   <div ref={chatBottomRef} />
                 </div>
               </div>
@@ -1429,7 +1539,7 @@ export default function AgentWorkspacePage() {
                   <input type="file" id="chat-file-uploader" style={{ display: 'none' }} onChange={(e) => { if (e.target.files?.[0]) alert(`File "${e.target.files[0].name}" attached.`) }} />
                   <TextField.Root
                     variant="soft" size="3"
-                    placeholder={isListening ? "Listening..." : isProcessing ? "Clara is thinking..." : inputMode === 'chat' ? "Describe your project idea or use case..." : "Define specifications..."}
+                    placeholder={isListening ? "Listening..." : isProcessing ? "kavi ai is thinking..." : "Describe your product idea or ask anything..."}
                     value={userInputText}
                     onChange={(e) => setUserInputText(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}

@@ -6,35 +6,36 @@ import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons'
 import { AuthShell } from '../../components/auth/AuthShell'
 import { acceptOrgInvite } from '../../services/orgApi'
 import { useAuth } from '../../auth/AuthContext'
+import { useToast } from '../../components/Toast'
 
 export function AcceptInvitePage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const { markAuthenticated } = useAuth()
+  const toast = useToast()
 
   const token = useMemo(() => params.get('token') || '', [params])
 
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const onSubmit = async (event) => {
     event.preventDefault()
     if (!token) {
-      setError('Missing invite token')
+      toast.error('Missing invite token', 'Please open the invite link again.')
       return
     }
-    setError('')
     setLoading(true)
     try {
       const response = await acceptOrgInvite({ token, password: password.trim() || null })
       if (response?.access_token) {
         await markAuthenticated(response.access_token)
       }
+      toast.success('Invite accepted', 'Welcome to your team!')
       navigate('/organizations')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to accept invite')
+      toast.error('Unable to accept invite', err instanceof Error ? err.message : 'Please try again.')
     } finally {
       setLoading(false)
     }
@@ -79,12 +80,6 @@ export function AcceptInvitePage() {
               </TextField.Slot>
             </TextField.Root>
           </Flex>
-
-          {error ? (
-            <Text size="2" color="red">
-              {error}
-            </Text>
-          ) : null}
 
           <Button size="3" style={{ width: '100%' }} disabled={loading || !token}>
             {loading ? 'Accepting...' : 'Accept invite'}

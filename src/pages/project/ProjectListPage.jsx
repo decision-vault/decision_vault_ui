@@ -25,31 +25,23 @@ import {
   ChevronDownIcon,
   ArrowDownIcon,
 } from '@radix-ui/react-icons'
-import { FolderKanban, Rocket, Layers, Code2, Database, ShieldCheck, GitBranch, Sparkles } from 'lucide-react'
 import { deleteProject, listProjects, restoreProject } from '../../services/projectApi'
+import { getBillingOverview } from '../../services/billingApi'
 import { useAuth } from '../../auth/AuthContext'
 
 const PROJECT_LIST_VIEW_KEY = 'dv_project_list_view'
 const PROJECT_LIST_STATUS_FILTER_KEY = 'dv_project_list_status_filter'
 
-const PROJECT_ICONS = [FolderKanban, Rocket, Code2, Database, ShieldCheck, GitBranch, Sparkles, Layers]
-const PROJECT_TINTS = [
-  { bg: 'rgba(59,130,246,0.12)', fg: '#2563eb', border: 'rgba(59,130,246,0.25)' },
-  { bg: 'rgba(37,99,235,0.12)', fg: '#1d4ed8', border: 'rgba(37,99,235,0.25)' },
-  { bg: 'rgba(96,165,250,0.12)', fg: '#3b82f6', border: 'rgba(96,165,250,0.25)' },
-  { bg: 'rgba(29,78,216,0.12)', fg: '#1e40af', border: 'rgba(29,78,216,0.25)' },
-  { bg: 'rgba(14,116,144,0.14)', fg: '#0369a1', border: 'rgba(14,116,144,0.28)' },
-  { bg: 'rgba(59,130,246,0.08)', fg: '#2563eb', border: 'rgba(59,130,246,0.18)' },
+const QUOTA_ROWS = [
+  { key: 'projects', label: 'PROJECTS', format: (v) => Number(v).toLocaleString() },
+  { key: 'team_members', label: 'TEAM MEMBERS', format: (v) => Number(v).toLocaleString() },
+  {
+    key: 'storage_mb',
+    label: 'STORAGE',
+    format: (v) => `${Number(v).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`,
+  },
+  { key: 'ai_tokens', label: 'AI TOKENS', format: (v) => Number(v).toLocaleString() },
 ]
-
-function projectVisual(project) {
-  const seed = project?.name
-    ? Array.from(project.name).reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
-    : 0
-  const Icon = PROJECT_ICONS[seed % PROJECT_ICONS.length]
-  const tint = PROJECT_TINTS[seed % PROJECT_TINTS.length]
-  return { Icon, tint }
-}
 
 export function ProjectListPage() {
   const { orgId } = useParams()
@@ -74,6 +66,18 @@ export function ProjectListPage() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [restoringId, setRestoringId] = useState('')
   const [error, setError] = useState('')
+  const [billingOverview, setBillingOverview] = useState(null)
+  const [billingLoading, setBillingLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    setBillingLoading(true)
+    getBillingOverview(orgId)
+      .then((data) => { if (mounted) setBillingOverview(data) })
+      .catch(() => {})
+      .finally(() => { if (mounted) setBillingLoading(false) })
+    return () => { mounted = false }
+  }, [orgId])
 
   useEffect(() => {
     let mounted = true
@@ -189,7 +193,7 @@ export function ProjectListPage() {
   )
 
   return (
-    <Box p="6" style={{ background: 'var(--color-background)', minHeight: '100vh' }}>
+    <Box p="6" style={{ background: 'var(--color-background)', minHeight: '100vh', maxWidth: '100%', overflowX: 'clip' }}>
       <Flex direction="column" gap="5" mx="auto" style={{ maxWidth: 1400 }}>
         
         {/* Title Heading */}
@@ -278,63 +282,55 @@ export function ProjectListPage() {
         )}
 
         {/* ================= TWO-COLUMN GRID WORKSPACE ================= */}
-        <Grid columns={{ initial: '1fr', lg: '1fr 360px' }} gap="6" mt="2">
+        <Grid columns={{ initial: '1fr', lg: '1fr 360px' }} gap="6" mt="2" style={{ minWidth: 0, width: '100%' }}>
           
           {/* LEFT: Projects List Frame */}
           <Box>
             {isLoading ? (
-              <Flex justify="center" align="center" p="6" style={{ minHeight: 200 }}>
+              <Flex justify="center" align="center" p="2" style={{ minHeight: 200 }}>
                 <Spinner size="3" />
               </Flex>
             ) : isEmpty ? (
-              <Card variant="ghost" style={{ border: '1px dashed var(--gray-6)', background: 'var(--gray-a2)' }}>
-                <Flex direction="column" align="center" justify="center" gap="4" p="8" style={{ minHeight: 240 }}>
-                  <Box
-                    style={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 16,
-                      background: 'var(--accent-a3)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <FolderKanban size={26} color="var(--accent-9)" />
-                  </Box>
-                  <Heading size="4" color="gray">No projects found</Heading>
-                  <Text size="2" color="gray" align="center" style={{ maxWidth: 360 }}>
-                    {search || statusFilter !== 'all'
-                      ? 'Try adjusting your search or status filter.'
-                      : 'Get started by building a deployment cloud project layout.'}
-                  </Text>
-                  {canCreateProject && !search && statusFilter === 'all' && (
-                    <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
-                      <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
-                        <PlusIcon width="16" height="16" />
-                        New project
-                      </Link>
-                    </Button>
-                  )}
-                </Flex>
-              </Card>
+              <Flex direction="column" align="center" justify="center" gap="3" style={{ minHeight: 300 }}>
+                <Heading size="4">No projects found</Heading>
+                <Text size="2" color="gray">
+                  {search || statusFilter !== 'all'
+                    ? 'Try adjusting your search or status filter.'
+                    : 'Create your first project to get started.'}
+                </Text>
+                {canCreateProject && !search && statusFilter === 'all' && (
+                  <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }} asChild>
+                    <Link to={`/organizations/${orgId}/new`} style={{ textDecoration: 'none' }}>
+                      <PlusIcon width="16" height="16" />
+                      New project
+                    </Link>
+                  </Button>
+                )}
+              </Flex>
             ) : view === 'grid' ? (
-              <Grid columns={{ initial: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(3, 1fr)' }} gap="4">
+              <Grid
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                  gap: '16px',
+                  width: '100%',
+                  minWidth: 0,
+                }}
+              >
                 {filtered.map((project) => {
-                  const { Icon, tint } = projectVisual(project)
                   const isPaused = (project.status || '').toLowerCase() === 'paused'
                   return (
                   <Card
                     key={project.id}
-                    variant="ghost"
                     className="project-card-interactive"
                     onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
                     style={{
-                      padding: '20px',
-                      border: '1px solid var(--gray-4)',
-                      position: 'relative',
-                      overflow: 'hidden',
+                      padding: '16px',
                       background: 'var(--color-panel-solid)',
+                      overflow: 'hidden',
+                      minWidth: 0,
+                      width: '100%',
+                      maxWidth: '100%',
                     }}
                   >
                     <style>{`
@@ -350,47 +346,41 @@ export function ProjectListPage() {
                     `}</style>
 
                     <Flex justify="between" align="start" gap="3">
-                      <Box
-                        style={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 10,
-                          background: tint.bg,
-                          border: `1px solid ${tint.border}`,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <Icon size={18} color={tint.fg} strokeWidth={2} />
+                      <Box style={{ minWidth: 0, overflow: 'hidden' }}>
+                        <Heading
+                          size="4"
+                          weight="bold"
+                          style={{
+                            color: 'var(--gray-12)',
+                            letterSpacing: '-0.01em',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {project.name}
+                        </Heading>
+                        <Text
+                          size="2"
+                          color="gray"
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden',
+                            marginTop: 6,
+                            minHeight: 34,
+                          }}
+                        >
+                          {project.description || 'No description yet.'}
+                        </Text>
                       </Box>
-                      <Box onClick={(e) => e.stopPropagation()}>
+                      <Box onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
                         {renderProjectActions(project)}
                       </Box>
                     </Flex>
 
-                    <Box mt="3" style={{ minWidth: 0 }}>
-                      <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)', letterSpacing: '-0.01em' }}>
-                        {project.name}
-                      </Heading>
-                      <Text
-                        size="2"
-                        color="gray"
-                        style={{
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                          marginTop: 6,
-                          minHeight: 34,
-                        }}
-                      >
-                        {project.description || 'No description yet.'}
-                      </Text>
-                    </Box>
-
-                    <Flex justify="between" align="center" mt="4">
+                    <Box mt="3">
                       {isPaused ? (
                         <Badge size="1" color="amber" variant="soft" highContrast={false}>
                           Paused
@@ -400,10 +390,7 @@ export function ProjectListPage() {
                           Active
                         </Badge>
                       )}
-                      <Badge size="1" variant="soft" color="gray" style={{ textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: 11 }}>
-                        {project.tier}
-                      </Badge>
-                    </Flex>
+                    </Box>
                   </Card>
                 )})}
               </Grid>
@@ -417,13 +404,24 @@ export function ProjectListPage() {
                     onClick={() => navigate(`/organizations/${orgId}/projects/${project.id}`)}
                     style={{ padding: '16px', border: '1px solid var(--gray-4)', position: 'relative', background: 'var(--color-panel-solid)' }}
                   >
-                    <Flex align="center" justify="between">
-                      <Flex align="center" gap="4" style={{ flex: 1 }}>
-                        <Heading size="3" style={{ color: 'var(--gray-12)' }}>{project.name}</Heading>
-                        <Text size="2" color="gray">{project.provider} • {project.region}</Text>
-                        <Badge size="1" color="gray">{project.tier}</Badge>
-                      </Flex>
-                      <Box onClick={(e) => e.stopPropagation()}>
+                    <Flex align="center" justify="between" style={{ gap: 12, minWidth: 0 }}>
+                      <Flex align="center" gap="4" style={{ flex: 1, minWidth: 0 }}>
+                        <Heading
+                          size="3"
+                          style={{
+                            color: 'var(--gray-12)',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {project.name}
+                        </Heading>
+                        <Text size="2" color="gray" style={{ whiteSpace: 'nowrap' }}> {project.description || 'No description yet.'}</Text>
+ <Badge size="1" color="green" variant="soft" highContrast={false}>
+                          Active
+                        </Badge>                      </Flex>
+                      <Box onClick={(e) => e.stopPropagation()} style={{ flexShrink: 0 }}>
                         {renderProjectActions(project)}
                       </Box>
                     </Flex>
@@ -435,79 +433,48 @@ export function ProjectListPage() {
 
           {/* ================= RIGHT: PLAN USAGE TRACKING MODULE ================= */}
           <Box>
-            <Card variant="ghost" style={{ padding: '24px', border: '1px solid var(--gray-4)', position: 'relative', overflow: 'hidden', background: 'var(--color-panel-solid)' }}>
-              <Box
-                style={{
-                  position: 'absolute',
-                  top: -60,
-                  right: -60,
-                  width: 160,
-                  height: 160,
-                  borderRadius: '50%',
-                  background: 'radial-gradient(circle, var(--accent-a5), transparent 70%)',
-                  pointerEvents: 'none',
-                }}
-              />
-              <Flex justify="between" align="start" mb="4" position="relative">
+            <Card variant="ghost" style={{ padding: '20px', border: '1px solid var(--gray-4)', background: 'var(--color-panel-solid)' }}>
+              <Flex justify="between" align="center" mb="4">
                 <Box>
                   <Heading size="3" weight="bold" style={{ color: 'var(--gray-12)' }}>
-                    Free plan usage
+                    {billingOverview?.plan_name || (billingOverview?.plan?.plan || 'Free')} plan usage
                   </Heading>
                   <Text size="1" color="gray" style={{ display: 'block', marginTop: '2px' }}>
                     Current billing cycle
                   </Text>
                 </Box>
-                
-                <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }}>
-                  Upgrade to Pro
+
+                <Button size="2" variant="solid" style={{ fontWeight: '600', cursor: 'pointer' }}
+                  onClick={() => navigate(`/organizations/${orgId}/billing`)}>
+                  Upgrade
                 </Button>
               </Flex>
 
-              <Flex direction="column" gap="4" mt="5">
-                {/* Metric 1: Egress */}
-                <Box>
-                  <Flex justify="between" align="center" mb="2">
-                    <Text size="1" weight="bold" color="gray">EGRESS</Text>
-                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                      <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 5 GB</span>
-                    </Text>
-                  </Flex>
-                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
-                </Box>
-
-                {/* Metric 2: Database Size */}
-                <Box>
-                  <Flex justify="between" align="center" mb="2">
-                    <Text size="1" weight="bold" color="gray">DATABASE SIZE</Text>
-                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                      <strong>26 MB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 500 MB</span>
-                    </Text>
-                  </Flex>
-                  <Progress value={(26 / 500) * 100} size="1" color="blue" radius="full" style={{ height: '6px' }} />
-                </Box>
-
-                {/* Metric 3: MAU */}
-                <Box>
-                  <Flex justify="between" align="center" mb="2">
-                    <Text size="1" weight="bold" color="gray">MONTHLY ACTIVE USERS</Text>
-                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                      <strong>0</strong> <span style={{ color: 'var(--gray-8)' }}>/ 50,000</span>
-                    </Text>
-                  </Flex>
-                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
-                </Box>
-
-                {/* Metric 4: File Storage */}
-                <Box>
-                  <Flex justify="between" align="center" mb="2">
-                    <Text size="1" weight="bold" color="gray">FILE STORAGE</Text>
-                    <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
-                      <strong>0 GB</strong> <span style={{ color: 'var(--gray-8)' }}>/ 1 GB</span>
-                    </Text>
-                  </Flex>
-                  <Progress value={0} size="1" color="blue" radius="full" style={{ height: '6px' }} />
-                </Box>
-              </Flex>
+              {billingLoading ? (
+                <Flex justify="center" align="center" py="6">
+                  <Spinner size="3" />
+                </Flex>
+              ) : (
+                <Flex direction="column" gap="3">
+                  {QUOTA_ROWS.map(({ key, label, format }) => {
+                    const q = billingOverview?.plan?.quotas?.[key]
+                    if (!q) return null
+                    const limit = q.limit
+                    const pct = limit ? Math.min(100, (q.used / limit) * 100) : 0
+                    return (
+                      <Box key={key}>
+                        <Flex justify="between" align="center" mb="2">
+                          <Text size="1" weight="bold" color="gray">{label}</Text>
+                          <Text size="1" weight="medium" style={{ color: 'var(--gray-12)' }}>
+                            <strong>{format(q.used)}</strong> <span style={{ color: 'var(--gray-8)' }}>/ {limit == null ? '∞' : format(limit)}</span>
+                          </Text>
+                        </Flex>
+                        <Progress value={pct} size="1" color={pct >= 90 ? 'red' : pct >= 70 ? 'amber' : 'blue'} radius="full" style={{ height: '6px' }} />
+                      </Box>
+                    )
+                  })}
+                </Flex>
+              )}
             </Card>
           </Box>
         </Grid>

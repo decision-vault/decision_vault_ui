@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Flex, Heading, Text, Button } from '@radix-ui/themes';
+import { Box, Flex, Heading, Text, Button, Badge } from '@radix-ui/themes';
 import { GitHubLogoIcon, TriangleDownIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 
 export default function IntegrationsPage() {
@@ -40,9 +40,12 @@ export default function IntegrationsPage() {
 
             {/* Content Details */}
             <Flex direction="column" gap="1">
-              <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
-                GitHub
-              </Heading>
+              <Flex align="center" gap="2">
+                <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                  GitHub
+                </Heading>
+                <Badge size="1" color="gray" variant="soft" radius="full">Coming soon</Badge>
+              </Flex>
               <Text size="2" style={{ color: 'var(--gray-11)', lineHeight: '1.5' }}>
                 Connect GitHub repositories to DecisionVault projects in this organization. The DecisionVault GitHub app watches file, branch, and pull request activity in each connected repository.
               </Text>
@@ -102,9 +105,12 @@ export default function IntegrationsPage() {
 
             {/* Content Details */}
             <Flex direction="column" gap="1">
-              <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
-                Vercel
-              </Heading>
+              <Flex align="center" gap="2">
+                <Heading size="4" weight="bold" style={{ color: 'var(--gray-12)' }}>
+                  Vercel
+                </Heading>
+                <Badge size="1" color="gray" variant="soft" radius="full">Coming soon</Badge>
+              </Flex>
               <Text size="2" style={{ color: 'var(--gray-11)', lineHeight: '1.5' }}>
                 Connect your Vercel teams to this DecisionVault organization. DecisionVault keeps environment variables up to date in each connected project. You can also link multiple Vercel projects to the same DecisionVault project.
               </Text>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useTheme } from "../../components/SystemTheme.jsx";
 
 import {
@@ -23,9 +23,7 @@ import {
 
 import { 
   User, 
-  FlaskConical, 
   FileText, 
-  ChevronRight,
   LogOut
 } from "lucide-react";
 
@@ -35,6 +33,8 @@ import HelpDrawer from "../../components/org/HelpDrawer";
 import NotificationDrawer from "../../components/org/NotificationDrawer";
 import SearchDialog from "../../components/org/SearchDialog";
 import FeedbackDialog from "../../components/org/FeedbackDialog";
+import { useNotificationUnread } from "../../hooks/useNotificationUnread";
+import { AccountProjectsList } from "../../components/org/AccountProjectsList";
 
 const navTitleByPath = {
   "/organizations": "Organizations",
@@ -57,6 +57,10 @@ export function OrgLayout() {
   const { sessionUser, refreshSession, signOut } = useAuth();
   const { mode: themeMode, setMode: setThemeMode } = useTheme();
   const [selectedTheme, setSelectedTheme] = useState(themeMode);
+
+  const orgId = sessionUser?.tenant_id;
+  const navigate = useNavigate();
+  const { unread: unreadNotifications } = useNotificationUnread(orgId);
 
   // Fallbacks matching user details
   const displayName = sessionUser?.email ? sessionUser.email.split("@")[0] : "kaviyarasumaran";
@@ -88,7 +92,7 @@ export function OrgLayout() {
     >
       {/* Dynamic Action Overlays */}
       <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} orgId={sessionUser?.tenant_id} />
 
       {/* ================= HEADER ================= */}
       <Flex
@@ -171,16 +175,39 @@ export function OrgLayout() {
           </IconButton>
 
           {/* Activity Alerts Stream Trigger */}
-          <IconButton
-            variant={activeDrawer === "notification" ? "soft" : "surface"}
-            color={activeDrawer === "notification" ? "gray" : undefined}
-            radius="full"
-            size="2"
-            onClick={() => toggleDrawer("notification")}
-            style={{ cursor: "pointer" }}
-          >
-            <BellIcon />
-          </IconButton>
+          <Box style={{ position: "relative", display: "inline-flex" }}>
+            <IconButton
+              variant={activeDrawer === "notification" ? "soft" : "surface"}
+              color={activeDrawer === "notification" ? "gray" : undefined}
+              radius="full"
+              size="2"
+              onClick={() => toggleDrawer("notification")}
+              style={{ cursor: "pointer" }}
+            >
+              <BellIcon />
+            </IconButton>
+            {unreadNotifications > 0 && (
+              <Box
+                style={{
+                  position: "absolute",
+                  top: -2,
+                  right: -2,
+                  minWidth: 16,
+                  height: 16,
+                  padding: "0 4px",
+                  borderRadius: "999px",
+                  backgroundColor: "var(--red-9)",
+                  color: "white",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  lineHeight: "16px",
+                  textAlign: "center",
+                }}
+              >
+                {unreadNotifications > 99 ? "99+" : unreadNotifications}
+              </Box>
+            )}
+          </Box>
 
           {/* ================= ACCOUNT PROFILE POPUP ================= */}
           <DropdownMenu.Root>
@@ -219,7 +246,10 @@ export function OrgLayout() {
 
               {/* Navigation Actions */}
               <Box py="1" style={{ borderBottom: "1px solid var(--gray-4)" }}>
-                <DropdownMenu.Item style={{ padding: "8px 16px", cursor: "pointer" }}>
+                <DropdownMenu.Item
+                  style={{ padding: "8px 16px", cursor: "pointer" }}
+                  onSelect={() => navigate(`/organizations/${orgId}/profile`)}
+                >
                   <Flex align="center" gap="3" width="100%">
                     <User size={16} color="var(--gray-9)" />
                     <Text size="2">Account</Text>
@@ -227,8 +257,8 @@ export function OrgLayout() {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item style={{ padding: "8px 16px", cursor: "pointer" }}>
                   <Flex align="center" gap="3" width="100%">
-                    <FlaskConical size={16} color="var(--gray-9)" />
-                    <Text size="2">Feature previews</Text>
+                    <User size={16} color="var(--gray-9)" />
+                    <Text size="2">Account</Text>
                   </Flex>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item onSelect={() => void refreshSession()} style={{ padding: "8px 16px", cursor: "pointer" }}>
@@ -238,6 +268,9 @@ export function OrgLayout() {
                   </Flex>
                 </DropdownMenu.Item>
               </Box>
+
+              {/* Projects Quick List */}
+              <AccountProjectsList orgId={orgId} />
 
               {/* Layout Theme Radio List */}
               <Box px="4" py="2" style={{ borderBottom: "1px solid var(--gray-4)" }}>
@@ -311,8 +344,8 @@ export function OrgLayout() {
 
         {activeDrawer && (
           <Box style={{ width: activeDrawer === "notification" ? 560 : 420, flexShrink: 0, borderLeft: "1px solid var(--gray-5)", background: "white", overflowY: "auto" }}>
-            {activeDrawer === "help" && <HelpDrawer onClose={() => setActiveDrawer(null)} />}
-            {activeDrawer === "notification" && <NotificationDrawer onClose={() => setActiveDrawer(null)} />}
+            {activeDrawer === "help" && <HelpDrawer onClose={() => setActiveDrawer(null)} orgId={sessionUser?.tenant_id} />}
+            {activeDrawer === "notification" && <NotificationDrawer onClose={() => setActiveDrawer(null)} orgId={orgId} />}
           </Box>
         )}
       </Flex>

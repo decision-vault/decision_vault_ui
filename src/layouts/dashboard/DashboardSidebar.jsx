@@ -4,7 +4,6 @@ import { Avatar, Box, Button, Flex, ScrollArea, DropdownMenu, Text, IconButton }
 import { useTheme } from '../../components/SystemTheme.jsx'
 import { 
   User, 
-  FlaskConical, 
   FileText, 
   ChevronRight,
   ChevronLeft,
@@ -15,11 +14,13 @@ import {
   Bot,
   Layout,
   FolderOpen,
-  Code2
+  Code2,
+  Users
 } from 'lucide-react'
 
 import logo from '../../assets/logo.svg'
 import { useAuth } from '../../auth/AuthContext'
+import { AccountProjectsList } from '../../components/org/AccountProjectsList'
 
 function NavItem({ to, icon: Icon, active, label, isCollapsed }) {
   return (
@@ -92,6 +93,7 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
     { key: 'workflow', label: 'Workflow', icon: GitBranch, to: `${projectRoot}/workflow`, match: '/workflow' },
     { key: 'ui-builder', label: 'UI Builder', icon: Layout, to: `${projectRoot}/dashboard/ui-builder`, match: '/dashboard/ui-builder' },
     { key: 'document-management', label: 'Documents', icon: FolderOpen, to: `${projectRoot}/dashboard/document-management`, match: '/dashboard/document-management' },
+    { key: 'team', label: 'Team', icon: Users, to: `${projectRoot}/dashboard/team`, match: '/dashboard/team' },
   ] : []
 
   const isActive = (item) => {
@@ -192,8 +194,8 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
                 </DropdownMenu.Item>
                 <DropdownMenu.Item style={{ padding: '8px 16px', cursor: 'pointer' }}>
                   <Flex align="center" gap="3" width="100%">
-                    <FlaskConical size={16} color="var(--gray-9)" />
-                    <Text size="2">Feature previews</Text>
+                    <User size={16} color="var(--gray-9)" />
+                    <Text size="2">Account</Text>
                   </Flex>
                 </DropdownMenu.Item>
                 <DropdownMenu.Item onSelect={() => void refreshSession()} style={{ padding: '8px 16px', cursor: 'pointer' }}>
@@ -203,6 +205,9 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
                   </Flex>
                 </DropdownMenu.Item>
               </Box>
+
+              {/* Projects Quick List */}
+              <AccountProjectsList orgId={orgId} />
 
               {/* Layout Theme Swapper Section */}
               <Box px="4" py="2" style={{ borderBottom: '1px solid var(--gray-4)' }}>
@@ -233,19 +238,6 @@ export function DashboardSidebar({ isCollapsed, setIsCollapsed }) {
                     </Flex>
                   ))}
                 </Flex>
-              </Box>
-
-              {/* Timezone Group */}
-              <Box py="1" style={{ borderBottom: '1px solid var(--gray-4)' }}>
-                <DropdownMenu.Item style={{ padding: '8px 16px', cursor: 'pointer' }}>
-                  <Flex align="center" justify="between" width="100%">
-                    <Box>
-                      <Text as="div" size="2" style={{ color: 'var(--gray-12)' }}>Timezone</Text>
-                      <Text as="div" size="1" style={{ color: 'var(--gray-9)' }}>Auto (Asia/Calcutta)</Text>
-                    </Box>
-                    <ChevronRight size={14} color="var(--gray-8)" />
-                  </Flex>
-                </DropdownMenu.Item>
               </Box>
 
               {/* CTA Upgrade Banner */}

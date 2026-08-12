@@ -76,7 +76,8 @@
 /* Unified Input Bar */
 .unified-input-bar {
   width: 100%;
-  max-width: none;
+  max-width: 780px;
+  margin: 0 auto;
   background: var(--color-surface);
   border: 1px solid var(--gray-4);
   border-radius: 18px;
@@ -152,7 +153,7 @@
 }
 
 .chat-panel-narrow {
-  flex: 0 0 420px;
+  flex: 0 0 560px;
   border-right: 1px solid var(--gray-4);
 }
 
@@ -199,7 +200,7 @@
 }
 
 .chat-messages-inner {
-  max-width: 680px;
+  max-width: 880px;
   width: 100%;
   margin: 0 auto;
   padding: 20px 20px;
@@ -220,10 +221,11 @@
   padding: 10px 14px;
   border-radius: 16px 16px 4px 16px;
   background: var(--blue-3);
-  color: var(--blue-12);
+  color: var(--gray-12);
   font-size: 13.5px;
   line-height: 1.55;
   white-space: pre-wrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .chat-bubble-ai {
@@ -234,13 +236,50 @@
 
 .chat-bubble-content-ai {
   max-width: 80%;
-  padding: 10px 14px;
-  border-radius: 16px 16px 16px 4px;
-  background: var(--color-surface);
-  border: 1px solid var(--gray-3);
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--gray-12);
+}
+
+/* Generated Document Snapshot Card */
+.doc-snapshot-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--blue-5);
+  border-radius: 12px;
+  background: var(--blue-2);
+  margin-bottom: 10px;
+  max-width: 100%;
+}
+
+.doc-snapshot-card .doc-snapshot-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--blue-4);
+  color: var(--blue-11);
+  flex-shrink: 0;
+}
+
+.doc-snapshot-card .doc-snapshot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.doc-snapshot-card .doc-snapshot-snippet {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+  max-width: 100%;
 }
 
 /* Typing Indicator */
@@ -283,6 +322,12 @@
   border-top: 1px solid var(--gray-4);
   background: var(--color-surface);
   flex-shrink: 0;
+}
+
+.chat-input-dock > * {
+  width: 100%;
+  max-width: 780px;
+  margin: 0 auto;
 }
 
 .chat-input-wrapper {
@@ -932,3 +977,107 @@
   padding: 1px 8px;
   white-space: nowrap;
 }
+
+/* ── Knowledge base citations ─────────────────────────── */
+
+.kb-citations {
+  margin-top: 10px;
+  border-top: 1px solid var(--gray-4);
+  padding-top: 8px;
+}
+
+.kb-citations-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--gray-5);
+  background: var(--gray-2);
+  color: var(--gray-11);
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.kb-citations-caret {
+  color: var(--gray-9);
+}
+
+.kb-citations-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.kb-citation {
+  background: var(--gray-1);
+  border: 1px solid var(--gray-4);
+  border-left: 3px solid var(--blue-8);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+/* ─── Structured execution activity panel ─────────────────────────── */
+.execution-activity-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 620px;
+  margin: 4px 0 8px 36px;
+}
+
+.execution-activity-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.execution-activity-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.execution-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 3px 0;
+}
+
+.execution-step-icon {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.execution-step-dot { color: var(--gray-8); font-size: 12px; }
+.execution-step-check { color: var(--green-9); font-size: 12px; font-weight: 700; }
+.execution-step-fail { color: var(--red-9); font-size: 12px; font-weight: 700; }
+
+.execution-step-spinner {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--gray-5);
+  border-top-color: var(--blue-9);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.execution-step-body { display: flex; flex-direction: column; gap: 1px; }
+.execution-step-active .execution-step-body { color: var(--blue-11); }
+.execution-step-done .execution-step-body { color: var(--gray-11); }
+.execution-step-failed .execution-step-body { color: var(--red-10); }

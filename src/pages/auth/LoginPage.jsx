@@ -15,20 +15,20 @@ import { EyeOpenIcon, EyeClosedIcon } from '@radix-ui/react-icons'
 import { AuthShell } from '../../components/auth/AuthShell'
 import { login } from '../../services/authApi'
 import { useAuth } from '../../auth/AuthContext'
+import { useToast } from '../../components/Toast'
 
 export function LoginPage() {
   const navigate = useNavigate()
   const { markAuthenticated } = useAuth()
+  const toast = useToast()
   const [showPassword, setShowPassword] = useState(false)
   const [tenantSlug, setTenantSlug] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const onSubmit = async (event) => {
     event.preventDefault()
-    setError('')
     setLoading(true)
     try {
       const response = await login({
@@ -37,9 +37,10 @@ export function LoginPage() {
         password,
       })
       markAuthenticated(response.access_token)
+      toast.success('Signed in', 'Welcome back to DecisionVault!')
       navigate('/dashboard/discovery')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unable to sign in')
+      toast.error('Sign in failed', err instanceof Error ? err.message : 'Unable to sign in')
     } finally {
       setLoading(false)
     }
@@ -108,12 +109,6 @@ export function LoginPage() {
               </TextField.Slot>
             </TextField.Root>
           </Flex>
-
-          {error ? (
-            <Text size="2" color="red">
-              {error}
-            </Text>
-          ) : null}
 
           <Button size="3" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Signing in...' : 'Sign in'}

@@ -1,12 +1,15 @@
-import React from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useParams } from 'react-router-dom'
 import {
-  Box, Flex, Text, Heading, Button, Select,
-  Grid, Badge, Card, Progress, Separator, ScrollArea
+  Box, Flex, Text, Button, Select,
+  Grid, Badge, Card, Separator, ScrollArea, Spinner
 } from '@radix-ui/themes'
 import {
-  BarChart2, ExternalLink, Info, Zap, Database,
-  Users, Shield, Activity, TrendingUp, Lock
+  BarChart2, ExternalLink, Lock, Zap, Database,
+  Activity, TrendingUp, AlertTriangle
 } from 'lucide-react'
+import { getUsageOverview } from '../../services/usageApi'
+import { listProjects } from '../../services/projectApi'
 
 // ─── Metric tile (Summary grid) ──────────────────────────────────────────────
 function MetricTile({ title, used, total, unit = '', pct = null, premium = false }) {
@@ -145,21 +148,89 @@ function UsageSection({ icon: Icon, title, subtitle, docLabel, leftExtra, childr
   )
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function formatDateRange(start, end) {
+  if (!start) return '—'
+  const s = new Date(start)
+  const e = end ? new Date(end) : null
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' }
+  const startStr = Number.isNaN(s.getTime()) ? '—' : s.toLocaleDateString('en-US', opts)
+  const endStr = e && !Number.isNaN(e.getTime()) ? e.toLocaleDateString('en-US', opts) : ''
+  return endStr ? `${startStr} – ${endStr}` : startStr
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function UsagePage() {
-  const METRICS = [
-    { title: 'Database Size',                       used: '0.026', total: '0.5',       unit: ' GB', pct: 5  },
-    { title: 'Egress',                              used: '0',     total: '5',          unit: ' GB', pct: 0  },
-    { title: 'Cached Egress',                       used: '0',     total: '5',          unit: ' GB', pct: 0  },
-    { title: 'Monthly Active Users',                used: '0',     total: '50,000',     unit: ' MAU',pct: 0  },
-    { title: 'Monthly Active Third-Party Users',    used: '0',     total: '50,000',     unit: ' MAU',pct: 0  },
-    { title: 'Storage Size',                        used: '0',     total: '1',          unit: ' GB', pct: 0  },
-    { title: 'Realtime Peak Connections',           used: '0',     total: '200',        unit: '',    pct: 0  },
-    { title: 'Realtime Messages',                   used: '0',     total: '2,000,000',  unit: '',    pct: 0  },
-    { title: 'Edge Function Invocations',           used: '0',     total: '500,000',    unit: '',    pct: 0  },
-    { title: 'Monthly Active SSO Users',            premium: true },
-    { title: 'Storage Image Transformations',       premium: true },
-  ]
+  const { orgId } = useParams()
+
+  const [period, setPeriod] = useState('current')
+  const [projectFilter, setProjectFilter] = useState('all')
+  const [projects, setProjects] = useState([])
+  const [overview, setOverview] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  const seqRef = useRef(0)
+
+  const loadUsage = React.useCallback(async (opts) => {
+    if (!orgId) return
+    const seq = ++seqRef.current
+    try {
+      const data = await getUsageOverview(orgId, {
+        period: opts.period,
+        projectId: opts.projectId === 'all' ? '' : opts.projectId,
+      })
+      if (seq !== seqRef.current) return
+      setOverview(data)
+      setLoadError('')
+    } catch (err) {
+      if (seq !== seqRef.current) return
+      setLoadError(err instanceof Error ? err.message : 'Failed to load usage')
+    } finally {
+      if (seq === seqRef.current) setIsLoading(false)
+    }
+  }, [orgId])
+
+  useEffect(() => {
+    setIsLoading(true)
+    loadUsage({ period, projectId: projectFilter })
+  }, [orgId, period, projectFilter, loadUsage])
+
+  useEffect(() => {
+    if (!orgId) return
+    let mounted = true
+    listProjects(orgId)
+      .then((data) => { if (mounted) setProjects(data || []) })
+      .catch(() => {})
+    return () => { mounted = false }
+  }, [orgId])
+
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState === 'visible') {
+        loadUsage({ period, projectId: projectFilter })
+      }
+    }
+    const id = setInterval(tick, 60000)
+    const onVisibility = () => { if (document.visibilityState === 'visible') tick() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [orgId, period, projectFilter, loadUsage])
+
+  const plan = overview?.plan || { name: 'Free' }
+  const quotaExceeded = Boolean(overview?.plan?.quota_exceeded)
+  const summary = overview?.summary || []
+  const tiles = summary.filter((s) => s.key !== 'ai_calls')
+  const detailRows = overview?.detail?.rows || []
+  const capacityRows = overview?.detail?.capacity || []
+  const daily = overview?.daily || []
+  const dailyMax = useMemo(
+    () => Math.max(0, ...daily.map((d) => Number(d.total_tokens) || 0)),
+    [daily]
+  )
 
   return (
     <Box style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -183,8 +254,8 @@ export default function UsagePage() {
 
         {/* Plan pill + cycle */}
         <Flex align="center" gap="3">
-          <Badge size="1" color="blue" variant="soft">Free Plan</Badge>
-          <Text size="1" color="gray" style={{ fontSize: 10 }}>25 Jun 2026 – 25 Jul 2026</Text>
+          <Badge size="1" color="blue" variant="soft">{plan.name} Plan</Badge>
+          <Text size="1" color="gray" style={{ fontSize: 10 }}>{formatDateRange(overview?.period?.start, overview?.period?.end)}</Text>
         </Flex>
       </Flex>
 
@@ -195,30 +266,37 @@ export default function UsagePage() {
           {/* ── Controls toolbar ─────────────────────────────────────────── */}
           <Flex align="center" justify="between" mb="6" wrap="wrap" gap="3">
             <Flex align="center" gap="2">
-              <Select.Root defaultValue="current">
+              <Select.Root value={period} onValueChange={setPeriod}>
                 <Select.Trigger size="2" placeholder="Billing cycle" />
                 <Select.Content>
                   <Select.Item value="current">Current billing cycle</Select.Item>
-                  <Select.Item value="prev">Previous billing cycle</Select.Item>
+                  <Select.Item value="previous">Previous billing cycle</Select.Item>
                 </Select.Content>
               </Select.Root>
-              <Select.Root defaultValue="all">
+              <Select.Root value={projectFilter} onValueChange={setProjectFilter}>
                 <Select.Trigger size="2" placeholder="All projects" />
                 <Select.Content>
                   <Select.Item value="all">All projects</Select.Item>
+                  {projects.map((p) => (
+                    <Select.Item key={p.id || p._id} value={String(p.id || p._id)}>{p.name}</Select.Item>
+                  ))}
                 </Select.Content>
               </Select.Root>
             </Flex>
 
             {/* Quota status banner */}
             <Flex align="center" gap="2" px="3" py="1" style={{
-              background: 'var(--blue-2)',
-              border: '1px solid var(--blue-5)',
+              background: quotaExceeded ? 'var(--red-2)' : 'var(--blue-2)',
+              border: quotaExceeded ? '1px solid var(--red-5)' : '1px solid var(--blue-5)',
               borderRadius: 'var(--radius-2)',
             }}>
-              <TrendingUp size={12} color="var(--blue-11)" />
+              <TrendingUp size={12} color={quotaExceeded ? 'var(--red-11)' : 'var(--blue-11)'} />
               <Text size="1" color="gray">
-                You have <Text size="1" weight="bold" style={{ color: 'var(--blue-11)' }}>not exceeded</Text> your Free Plan quota this cycle.
+                {quotaExceeded ? (
+                  <>You have <Text size="1" weight="bold" style={{ color: 'var(--red-11)' }}>exceeded</Text> your {plan.name} Plan quota this cycle.</>
+                ) : (
+                  <>You have <Text size="1" weight="bold" style={{ color: 'var(--blue-11)' }}>not exceeded</Text> your {plan.name} Plan quota this cycle.</>
+                )}
               </Text>
             </Flex>
           </Flex>
@@ -230,110 +308,102 @@ export default function UsagePage() {
             </Text>
             <Separator orientation="horizontal" style={{ flex: 1 }} />
             <Text size="1" color="gray" style={{ fontSize: 10, fontStyle: 'italic' }}>
-              Refreshes every hour
+              Refreshes every minute
             </Text>
           </Flex>
 
-          {/* ── Metric tiles grid ─────────────────────────────────────────── */}
-          <Grid columns={{ initial: '1', sm: '2', md: '3', lg: '4' }} gap="3" mb="8">
-            {METRICS.map((m, i) => (
-              <MetricTile key={i} {...m} />
-            ))}
-          </Grid>
+          {isLoading ? (
+            <Flex align="center" justify="center" py="12">
+              <Spinner size="3" />
+            </Flex>
+          ) : loadError ? (
+            <Flex direction="column" align="center" gap="3" py="10">
+              <AlertTriangle size={18} color="var(--red-9)" />
+              <Text size="2" color="gray">{loadError}</Text>
+              <Button variant="soft" color="gray" size="2" style={{ cursor: 'pointer' }}
+                onClick={() => { setIsLoading(true); loadUsage({ period, projectId: projectFilter }) }}>
+                Retry
+              </Button>
+            </Flex>
+          ) : (
+            <>
+              {/* ── Metric tiles grid ─────────────────────────────────────────── */}
+              <Grid columns={{ initial: '1', sm: '2', md: '3', lg: '4' }} gap="3" mb="8">
+                {tiles.map((t) => (
+                  <MetricTile
+                    key={t.key}
+                    title={t.title}
+                    used={t.used}
+                    total={t.total === null ? 'Unlimited' : t.total}
+                    unit={t.unit}
+                    premium={t.premium}
+                  />
+                ))}
+              </Grid>
 
-          {/* ═══════════════════════════════════════════════════════════════ */}
-          {/*  DETAIL SECTIONS                                               */}
-          {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/*  DETAIL SECTIONS                                               */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
 
-          {/* 1. Egress ─────────────────────────────────────────────────── */}
-          <UsageSection
-            icon={Activity}
-            title="Egress"
-            subtitle="Amount of data transmitted over all network connections. Billing is based on total uncached egress in GB throughout your billing period."
-            docLabel="Documentation"
-          >
-            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
-              <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Egress usage</Text>
-              <UsageRow label="Included in Free Plan" value="5 GB" />
-              <UsageRow label="Used in period"        value="0.00 GB" />
-              <UsageRow label="Overage in period"     value="0 GB" highlight />
-            </Card>
-            <EmptyChart title="Egress per day" />
-          </UsageSection>
+              {/* 1. AI Tokens ─────────────────────────────────────────────── */}
+              <UsageSection
+                icon={Zap}
+                title="AI Tokens"
+                subtitle="Token consumption from AI-assisted PRD generation, workflow planning, and UI canvas generation. Usage is counted within this billing cycle and resets on renewal."
+              >
+                <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
+                  <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>AI Tokens usage</Text>
+                  {detailRows.map((row) => (
+                    <UsageRow key={row.label} label={row.label} value={row.value} highlight={row.highlight} />
+                  ))}
+                </Card>
+                {daily.length > 0 ? (
+                  <Box>
+                    <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>AI Tokens per day</Text>
+                    <Flex align="end" gap="2"
+                      style={{
+                        border: '1px solid var(--gray-4)',
+                        borderRadius: 'var(--radius-3)',
+                        background: 'var(--gray-2)',
+                        minHeight: 110,
+                        padding: '10px',
+                      }}
+                    >
+                      {daily.map((d) => (
+                        <Box
+                          key={d.date}
+                          title={`${d.date}: ${Number(d.total_tokens).toLocaleString()} tokens`}
+                          style={{
+                            flex: 1,
+                            background: 'var(--accent-9)',
+                            borderRadius: 3,
+                            minWidth: 3,
+                            height: dailyMax ? `${Math.max(4, (Number(d.total_tokens) / dailyMax) * 100)}%` : '4px',
+                          }}
+                        />
+                      ))}
+                    </Flex>
+                  </Box>
+                ) : (
+                  <EmptyChart title="AI Tokens per day" />
+                )}
+              </UsageSection>
 
-          {/* 2. Database & Storage ─────────────────────────────────────── */}
-          <UsageSection
-            icon={Database}
-            title="Database & Storage Size"
-            subtitle="Database size refers to the actual space used by all database objects, as reported by Postgres. Storage size tracks file assets."
-            docLabel="Documentation"
-          >
-            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
-              <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Database size usage</Text>
-              <UsageRow label="Included in Free Plan" value="0.5 GB per project" />
-              <UsageRow label="Max database size"     value="24.62 MB" />
-            </Card>
-
-            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
-              <Flex justify="between" align="center">
-                <Box>
-                  <Text size="2" weight="bold" style={{ display: 'block', color: 'var(--gray-12)', marginBottom: 2 }}>
-                    Current database size per project
-                  </Text>
-                  <Flex align="center" gap="2">
-                    <Text size="2" weight="bold">test</Text>
-                    <Text size="2" color="gray">24.62 MB</Text>
-                    <Info size={12} color="var(--gray-8)" />
-                  </Flex>
-                </Box>
-                <Button variant="soft" color="gray" size="1" style={{ cursor: 'pointer' }}>
-                  Manage size
-                </Button>
-              </Flex>
-            </Card>
-          </UsageSection>
-
-          {/* 3. Monthly Active Users ───────────────────────────────────── */}
-          <UsageSection
-            icon={Users}
-            title="Monthly Active Users"
-            subtitle="Users who log in or refresh their token count toward MAU. Billing is based on the sum of distinct users per billing period."
-            docLabel="Auth documentation"
-          >
-            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
-              <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Monthly Active Users usage</Text>
-              <UsageRow label="Included in Free Plan"  value="50,000" />
-              <UsageRow label="Cumulative in period"   value="0" />
-              <UsageRow label="Overage in period"      value="0" highlight />
-            </Card>
-            <EmptyChart title="Cumulative MAU in billing period" />
-          </UsageSection>
-
-          {/* 4. SSO — locked ───────────────────────────────────────────── */}
-          <UsageSection
-            icon={Shield}
-            title="Monthly Active SSO Users"
-            subtitle="SSO users who log in or refresh their token count towards SSO MAU. Resets every billing cycle."
-            docLabel="SSO with SAML 2.0"
-          >
-            <LockedCard />
-          </UsageSection>
-
-          {/* 5. Edge Functions ─────────────────────────────────────────── */}
-          <UsageSection
-            icon={Zap}
-            title="Edge Function Invocations"
-            subtitle="Every serverless function invocation, independent of response status, is counted toward your monthly quota."
-            docLabel="Edge Functions docs"
-          >
-            <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
-              <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Edge Function Invocations usage</Text>
-              <UsageRow label="Included in Free Plan" value="500,000" />
-              <UsageRow label="Used in period"        value="0" />
-              <UsageRow label="Overage in period"     value="0" highlight />
-            </Card>
-            <EmptyChart title="Edge Function Invocations per day" />
-          </UsageSection>
+              {/* 2. Plan Capacity ─────────────────────────────────────────── */}
+              <UsageSection
+                icon={Database}
+                title="Plan Capacity"
+                subtitle={`Included resource limits for your organization's ${plan.name} Plan. Projects, team members and storage are enforced as hard limits.`}
+              >
+                <Card size="1" style={{ background: 'var(--color-panel-solid)' }}>
+                  <Text size="2" weight="medium" mb="2" style={{ display: 'block', color: 'var(--gray-11)' }}>Limits & usage</Text>
+                  {capacityRows.map((row) => (
+                    <UsageRow key={row.label} label={row.label} value={row.value} />
+                  ))}
+                </Card>
+              </UsageSection>
+            </>
+          )}
 
         </Box>
       </ScrollArea>

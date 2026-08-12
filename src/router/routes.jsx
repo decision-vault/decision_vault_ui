@@ -18,9 +18,13 @@ import { LandingPage } from "../pages/marketing/LandingPage";
 import { OrgListPage } from "../pages/org/OrgListPage";
 import { OrgCreatePage } from "../pages/org/OrgCreatePage";
 import { OrgPlansPage } from "../pages/org/OrgPlansPage";
+import { OrgDetailsPage } from "../pages/org/OrgDetailsPage";
+import { UserProfilePage } from "../pages/project/UserProfilePage";
 import { ProjectListPage } from "../pages/project/ProjectListPage";
 import { ProjectCreatePage } from "../pages/project/ProjectCreatePage";
 import { DashboardPage } from "../pages/dashboard/DashboardPage";
+import ProjectTeamPage from "../pages/project/ProjectTeamPage";
+import ProjectInvitePage from "../pages/project/ProjectInvitePage";
 import { GuestRoute, ProtectedRoute } from "../auth/ProtectedRoute";
 import TaskManagementPage from "../pages/tasks/TaskManagementPage";
 import TaskDetailPage from "../pages/tasks/TaskDetailPage";
@@ -32,7 +36,8 @@ import TeamPage from "../layouts/project/TeamPage";
 import IntegrationsPage from "../layouts/project/IntegrationsPage";
 import UsagePage from "../layouts/project/UsagePage";
 import BillingPage from "../layouts/project/BillingPage";
-import SettingsPage from "../layouts/project/SettingsPage";
+import FeedbackIssuesPage from "../layouts/project/FeedbackIssuesPage";
+import TroubleshootingPage from "../layouts/project/TroubleshootingPage";
 
 function RedirectToProjectDashboard() {
   const { orgId, projectId } = useParams();
@@ -53,6 +58,10 @@ const routes = [
   {
     path: "/invite",
     element: <AcceptInvitePage />,
+  },
+  {
+    path: "/invite/project",
+    element: <ProjectInvitePage />,
   },
   {
     path: "/",
@@ -95,6 +104,8 @@ const routes = [
       { path: "dashboard", element: <Navigate to="overview" replace /> },
       { path: "dashboard/agentsMain", element: <AgentWorkspacePage /> },
       { path: "dashboard/overview", element: <DashboardPage /> },
+      { path: "dashboard/team", element: <ProjectTeamPage /> },
+      { path: "dashboard/profile", element: <UserProfilePage /> },
 
       { path: "dashboard/ui-builder", element: <UIBuilderPage /> },
       {
@@ -118,11 +129,14 @@ const routes = [
     children: [
       { path: "projects", element: <ProjectListPage /> },
       { path: "new", element: <ProjectCreatePage /> },
+      { path: "details", element: <OrgDetailsPage /> },
+      { path: "profile", element: <UserProfilePage /> },
       { path: "team", element: <TeamPage /> },
       { path: "integrations", element: <IntegrationsPage /> },
       { path: 'usage', element: <UsagePage /> },
       { path: 'billing', element: <BillingPage /> },
-      { path: 'settings', element: <SettingsPage /> },
+      { path: 'feedback', element: <FeedbackIssuesPage /> },
+      { path: 'troubleshooting', element: <TroubleshootingPage /> },
       { path: ":projectId", element: <RedirectToProjectDashboard /> },
 
     ],

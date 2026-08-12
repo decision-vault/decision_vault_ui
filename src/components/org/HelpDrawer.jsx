@@ -6,6 +6,8 @@ import {
   Button,
 } from "@radix-ui/themes";
 
+import { useNavigate } from "react-router-dom";
+
 import {
   BookOpen,
   Wrench,
@@ -28,17 +30,19 @@ const DiscordIcon = () => (
   </svg>
 );
 
-function HelpItem({ icon, title, description }) {
+function HelpItem({ icon, title, description, onClick, chip }) {
   return (
     <Flex
       align="center"
       justify="between"
       px="4"
       py="4"
+      onClick={onClick}
       style={{
         borderBottom: "1px solid var(--gray-5)",
-        cursor: "pointer",
+        cursor: onClick ? "pointer" : "default",
         backgroundColor: "white",
+        transition: "background 0.15s ease",
       }}
     >
       <Flex gap="4" align="start">
@@ -54,16 +58,23 @@ function HelpItem({ icon, title, description }) {
         </Box>
 
         <Box>
-          <Text as="div" size="3" style={{ color: "var(--gray-12)" }}>
-            {title}
-          </Text>
+          <Flex align="center" gap="2">
+            <Text as="div" size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
+              {title}
+            </Text>
+            {chip && (
+              <Badge size="1" color="gray" variant="soft" radius="full">
+                {chip}
+              </Badge>
+            )}
+          </Flex>
 
           <Text
             as="div"
             size="2"
             style={{
               color: "var(--gray-11)",
-              marginTop: "4px",
+              marginTop: "2px",
             }}
           >
             {description}
@@ -76,7 +87,21 @@ function HelpItem({ icon, title, description }) {
   );
 }
 
-export default function HelpDrawer({ onClose }) {
+export default function HelpDrawer({ onClose, orgId }) {
+  const navigate = useNavigate();
+
+  const goToTroubleshooting = () => {
+    if (!orgId) return;
+    onClose();
+    navigate(`/organizations/${orgId}/troubleshooting`);
+  };
+
+  const goToContactSupport = () => {
+    if (!orgId) return;
+    onClose();
+    navigate(`/organizations/${orgId}/feedback`);
+  };
+
   return (
     <Box
       style={{
@@ -97,7 +122,7 @@ export default function HelpDrawer({ onClose }) {
           borderBottom: "1px solid var(--gray-5)",
         }}
       >
-        <Text size="3" weight="medium" style={{ color: "var(--gray-12)" }}>
+        <Text size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
           Help &amp; Support
         </Text>
 
@@ -142,30 +167,34 @@ export default function HelpDrawer({ onClose }) {
       <HelpItem
         icon={<BookOpen size={20} strokeWidth={1.5} />}
         title="Docs"
-        description="Browse guides, references, and product documentation."
+        description="Browse DecisionVault guides, references, and product documentation."
+        chip="Coming soon"
       />
 
       <HelpItem
         icon={<Wrench size={20} strokeWidth={1.5} />}
         title="Troubleshooting"
         description="Find fixes for common platform issues and errors."
+        onClick={goToTroubleshooting}
       />
 
       <HelpItem
         icon={<Activity size={20} strokeWidth={1.5} />}
-        title="Supabase status"
+        title="DecisionVault status"
         description="Check incidents, maintenance, and uptime updates."
+        chip="Coming soon"
       />
 
       <HelpItem
         icon={<Mail size={20} strokeWidth={1.5} />}
         title="Contact support"
         description="Reach support for account and platform issues."
+        onClick={goToContactSupport}
       />
 
       {/* Community */}
       <Box px="4" py="5">
-        <Text as="div" size="3" weight="medium" style={{ color: "var(--gray-12)" }}>
+        <Text as="div" size="2" weight="medium" style={{ color: "var(--gray-12)" }}>
           Community support
         </Text>
 
@@ -193,8 +222,7 @@ export default function HelpDrawer({ onClose }) {
               "radial-gradient(120% 140% at 85% 100%, #7B84F5 0%, #5865F2 35%, #4650E0 65%, #3B3FC9 100%)",
           }}
         >
-          {/* Soft abstract shapes to echo a community/crowd illustration
-              without reproducing any specific copyrighted artwork */}
+          {/* Abstract gradient artwork for the DecisionVault community panel */}
           <svg
             width="100%"
             height="100%"
